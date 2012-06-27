@@ -1,0 +1,349 @@
+#! /usr/bin/env python
+
+import os
+import sys
+import argparse
+
+from pycparser import parse_file, c_ast, c_generator
+
+########################################################################################################################
+
+CPP_ARGS = [
+    r"-nostdinc",
+    r"-Iadyton-mock/include/fake_libc",
+    r"-Iadyton-mock/include",
+    r"-Iadyton-core/include",
+]
+
+########################################################################################################################
+
+class CModule(object):
+
+    def __init__(self, filename):
+        self.filename = filename
+        self.content = None
+        self.ast = None
+        
+    def parse(self):
+        self.content = open(self.filename, "r").read()
+        self.ast = parse_file(self.filename, use_cpp=True, cpp_args=CPP_ARGS)
+    
+    def get_name(self):
+        _, module = os.path.split(self.filename)
+        if (module.endswith(".c")): module = module.replace(".c","")
+        if (module.endswith(".C")): module = module.replace(".C","")
+        return module;
+    
+    def get_file(self):
+        return os.path.abspath(self.filename)
+    
+########################################################################################################################
+
+class FunctionArgument(object):
+    
+    def __init__(self, name, declaration):
+        self.name = name
+        self.declaration = declaration
+    
+    def get_name(self):
+        return self.name
+    
+    def get_declaration(self):
+        return self.declaration
+
+########################################################################################################################
+
+class FunctionDefinition(object):
+    
+    def __init__(self, node):
+        self.node = node
+            
+    def get_function_name(self):
+        return self.node.decl.name
+
+    def get_return_type(self):
+        generator = c_generator.CGenerator()
+        type_node = dict(dict(self.node.decl.children())['type'].children())['type']
+        return_type_and_function_name = generator._generate_type(type_node)
+        return return_type_and_function_name[:-len(self.get_function_name())].strip()
+         
+    def get_happy_return_value(self):
+        return_type = self.get_return_type()
+        if   return_type == "void":  happy_value = "NULL";
+        elif return_type == "rc_t": happy_value  = "RC_OK";
+        else: happy_value = "happy_value"
+        return happy_value  
+         
+    def get_arguments(self):
+        generator = c_generator.CGenerator()
+        args = dict(self.node.decl.type.children()).get('args', None)
+        if not args: return []
+    
+        args = dict(args.children())
+        result = []
+        for arg in args.values():                    
+            declaration = generator._generate_type(dict(arg.children())['type'])
+            if arg.name: result.append(FunctionArgument(arg.name, declaration))
+        return result                  
+            
+    def get_arguments_declaration(self):
+        return ", ".join(arg.get_declaration() for arg in self.get_arguments())
+    
+    def get_file(self):
+        return os.path.abspath(self.node.coord.file)
+        
+########################################################################################################################
+
+class Generator(object):
+    
+    def __init__(self, module, output):
+        self.module = module
+        self.output = output
+
+    def gen_header(self, lines):
+        pass
+               
+    def gen_body(self, lines):
+        pass
+    
+    def gen_footer(self, lines):
+        pass
+        
+    def write_lines(self, lines):        
+        output_file = open(self.output, "w")
+        output_file.write("\n".join(lines))
+        output_file.close()
+    
+    def generate(self):
+        lines = []
+        self.gen_header(lines)
+        self.gen_body(lines)
+        self.gen_footer(lines)
+        self.write_lines(lines)
+
+########################################################################################################################
+    
+class DoubleDescriptionGenerator(Generator):
+    
+    def __init__(self, module, output=None):
+        output = output if output else "%s_mock.c" % module.get_name()
+        super(DoubleDescriptionGenerator, self).__init__(module, output)
+        
+    def gen_header(self, lines):
+        lines.append("#ifndef __ADYTON_%s_MOCK_H__" % self.module.get_name().upper())
+        lines.append("#define __ADYTON_%s_MOCK_H__" % self.module.get_name().upper())        
+        lines.append("")
+        lines.append("#include <adyton/mock/mock.h>")
+
+        for line in self.module.content.splitlines():
+            if line.strip().startswith("#"):
+                lines.append(line)
+               
+    def gen_body(self, lines):
+        
+        module = self.module
+        
+        class Visitor(c_ast.NodeVisitor):
+            
+            def gen_double_description(self, func_def):
+                return_type      = func_def.get_return_type()
+                function_name    = func_def.get_function_name()
+                arguments        = func_def.get_arguments()
+                formal_arguments = func_def.get_arguments_declaration()
+                happy_value      = func_def.get_happy_return_value()                
+                                
+                lines.append("")
+                lines.append("{return_type} {function_name}({formal_arguments})".format(**locals()))
+                lines.append("{")
+                for arg in arguments:
+                    lines.append("    INPUT_VALUE({name});".format(name=arg.get_name()))
+                lines.append("    RETURN_VALUE({happy_value});".format(**locals()))
+                lines.append("}")
+                
+            def visit_FuncDef(self, node):
+                func_def = FunctionDefinition(node)                                      
+                if (func_def.get_function_name() == "main"):   return
+                if (func_def.get_file() != module.get_file()): return                                
+                self.gen_double_description(func_def)
+               
+        Visitor().visit(self.module.ast)
+        
+    def gen_footer(self, lines):
+        lines.append("")
+        lines.append("#endif")           
+        lines.append("")
+
+########################################################################################################################
+    
+class DoubleHeaderGenerator(Generator):
+    
+    def __init__(self, module, output=None):
+        output = output if output else "%s_mock.h" % module.get_name()
+        super(DoubleHeaderGenerator, self).__init__(module, output)
+        
+    def gen_header(self, lines):
+        lines.append("#ifndef __ADYTON_%s_MOCK_H__" % self.module.get_name().upper())
+        lines.append("#define __ADYTON_%s_MOCK_H__" % self.module.get_name().upper())        
+        lines.append("")
+
+        for line in self.module.content.splitlines():
+            if line.strip().startswith("#"):
+                lines.append(line)
+               
+    def gen_body(self, lines):
+        
+        module = self.module
+        
+        class Visitor(c_ast.NodeVisitor):
+            
+            def gen_declaration(self, func_def):
+                return_type           = func_def.get_return_type()
+                function_name         = func_def.get_function_name()
+                formal_arguments      = func_def.get_arguments_declaration()
+                mock_formal_arguments = func_def.get_arguments_declaration()
+                stub_formal_arguments = return_type + " return_value" if return_type != "void" else ""
+                                
+                lines.append("")
+                lines.append("void MOCK_{function_name}({mock_formal_arguments});".format(**locals()))
+                lines.append("void STUB_{function_name}({stub_formal_arguments});".format(**locals()))
+                lines.append("{return_type} UNDER_TEST_{function_name}({formal_arguments});".format(**locals()))            
+            
+            def visit_FuncDef(self, node):
+                func_def = FunctionDefinition(node)
+                if (func_def.get_function_name() == "main"): return
+                if (func_def.get_file() != module.get_file()): return               
+                self.gen_declaration(func_def)
+               
+        Visitor().visit(self.module.ast)
+        
+    def gen_footer(self, lines):
+        lines.append("")
+        lines.append("#endif")           
+        lines.append("")
+
+########################################################################################################################
+  
+class DoubleImplementationGenerator(Generator):
+
+    def __init__(self, module, output=None):
+        output = output if output else "%s_mock.c" % module.get_name()
+        super(DoubleImplementationGenerator, self).__init__(module, output)
+        
+    def gen_header(self, lines):
+        lines.append("#include <adyton/mock/%s_mock.h>" % self.module.get_name())
+        lines.append("#include <adyton/test/unit_test.h>")
+    
+    def gen_body(self, lines):
+
+        module = self.module    
+        
+        class ImplementationVisitor(c_ast.NodeVisitor):
+                
+            def gen_separator(self):
+                lines.append("") 
+                lines.append("/" + "*"*118 + "/")
+                            
+            def gen_stub(self, func_def):
+                return_type      = func_def.get_return_type()
+                function_name    = func_def.get_function_name()
+                arguments        = func_def.get_arguments()
+                formal_arguments = return_type + " return_value" if return_type != "void" else ""
+                return_value     = "return_value" if return_type != "void" else "NULL"
+                
+                lines.append("")
+                lines.append("void STUB_{function_name}({formal_arguments})".format(**locals()))
+                lines.append("{")
+                for arg in arguments:
+                    name = arg.get_name()
+                    lines.append("    expect_any({function_name}, {name});".format(**locals()))
+                lines.append("    will_return({function_name}, {return_value});".format(**locals()))
+                lines.append("}")
+                    
+            
+            def gen_mock(self, func_def):
+                return_type      = func_def.get_return_type()
+                function_name    = func_def.get_function_name()
+                arguments        = func_def.get_arguments()
+                formal_arguments = func_def.get_arguments_declaration()
+                happy_value      = func_def.get_happy_return_value()   
+                
+                lines.append("void MOCK_{function_name}({formal_arguments})".format(**locals()))
+                lines.append("{")
+                for arg in arguments:
+                    name = arg.get_name()
+                    lines.append("    expect_value({function_name}, {name});".format(**locals()))
+                lines.append("    will_return({function_name}, {happy_value});".format(**locals()))
+                lines.append("}")
+                    
+            def gen_double(self, func_def): 
+                return_type          = func_def.get_return_type()
+                function_name        = func_def.get_function_name()
+                arguments            = func_def.get_arguments()
+                formal_arguments     = func_def.get_arguments_declaration()
+                happy_value          = func_def.get_happy_return_value()   
+                return_or_not_return = "return " if return_type != "void" else ""
+                
+                lines.append("")
+                lines.append("{return_type} {function_name}({formal_arguments})".format(**locals()))
+                lines.append("{")
+                lines.append("    if (default_stub())")
+                lines.append("        STUB_{function_name}({happy_value})".format(**locals()))
+                for arg in arguments:
+                    lines.append("    check_expected({name})".format(name=arg.get_name()))
+                lines.append("    {return_or_not_return}({return_type})mock();".format(**locals()))
+                lines.append("}")
+
+            def visit_FuncDef(self, node):
+                func_def = FunctionDefinition(node)
+                if (func_def.get_function_name() == "main"): return
+                if (func_def.get_file() != module.get_file()): return               
+                self.gen_separator()
+                self.gen_stub(func_def)
+                self.gen_mock(func_def)
+                self.gen_double(func_def)
+
+        visitor = ImplementationVisitor()
+        visitor.visit(self.module.ast)
+    
+    def gen_footer(self, lines):
+        lines.append("")
+              
+## CLI #################################################################################################################
+    
+def parse_args():
+    parser = argparse.ArgumentParser(description='Automatically generates cmockery double for a given c module')
+    subparsers = parser.add_subparsers(help="available commands", dest="action")
+    
+    prepare_parser = subparsers.add_parser("prepare", help="generates a double description file that can be tweaked by hand from a C module")
+    prepare_parser.add_argument("file", metavar="FILE", help="input C module")
+    prepare_parser.add_argument("-o", "--output", metavar="FILE", help="output file")
+
+    mock_parser = subparsers.add_parser("mock", help="compiles a cmockery mock/stub module from a double description file")
+    mock_parser.add_argument("file", metavar="FILE", help="input double description module")
+    mock_parser.add_argument("-o", "--output", metavar="FILE", help="output file")
+
+    clone_parser = subparsers.add_parser("clone", help="prepares and compiles a gefault cmockery mock/stub module from a C module")
+    clone_parser.add_argument("file", metavar="FILE", help="input C module")
+    clone_parser.add_argument("-o", "--output", metavar="FILE", help="output file")
+            
+    return parser.parse_args()
+    
+########################################################################################################################
+    
+if __name__=="__main__":
+    
+    args = parse_args()
+
+    if (args.action == "prepare"):
+        module = CModule(args.file)
+        module.parse()
+        DoubleDescriptionGenerator(module, args.output).generate()
+    elif (args.action == "mock"):
+        module = CModule(args.file)
+        module.parse()
+        DoubleHeaderGenerator(module, args.output).generate()        
+    elif (args.action == "clone"):
+        module = CModule(args.file)
+        module.parse()
+        DoubleHeaderGenerator(module).generate()
+        DoubleImplementationGenerator(module).generate()
