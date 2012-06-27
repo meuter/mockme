@@ -1,0 +1,5 @@
+1. fix the CLI to work with optparse
+2. patch mockme to fwd -I and -D to cpp when parsing module
+3. add some new kind of target to sconscript say e.g. DoubleModule() that calls mockme properly
+4. make it work with double description macros
+
