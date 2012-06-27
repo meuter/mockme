@@ -15,7 +15,7 @@
 		for(__i = 0; __i < n; ++__i)\
 			MOCK_ ## function(args);\
 	}\
-	while (0)\
+	while (0)
 
 #define STUB(function, args...)\
 	STUB_ ## function(args)
@@ -26,7 +26,10 @@
 		for(__i = 0; __i < n; ++__i)\
 			STUB_ ## function(args);\
 	}\
-	while (0)\
+	while (0)
+
+#define CALL(function_call)\
+	UNDER_TEST_ ## function_call
 
 typedef UnitTest unit_test_t;
 

@@ -2,30 +2,36 @@
 
 import os
 import sys
-import argparse
+import optparse
 
 from pycparser import parse_file, c_ast, c_generator
 
-########################################################################################################################
-
-CPP_ARGS = [
-    r"-nostdinc",
-    r"-Iinclude/mockme/fake_libc",
-    r"-Iinclude/"
-]
+"""
+            pipe = Popen(   path_list, 
+                            stdout=PIPE, 
+                            universal_newlines=True)
+            text = pipe.communicate()[0]
+        except OSError as e:
+            raise RuntimeError("Unable to invoke 'cpp'.  " +
+                'Make sure its path was passed correctly\n' +
+                ('Original error: %s' % e))
+    else:
+        text = open(filename, 'rU').read()
+"""
 
 ########################################################################################################################
 
 class CModule(object):
 
-    def __init__(self, filename):
+    def __init__(self, filename, cpp_args=None):
         self.filename = filename
-        self.content = None
-        self.ast = None
+        self.cpp_args = cpp_args
+        self.content  = None
+        self.ast      = None
         
     def parse(self):
-        self.content = open(self.filename, "r").read()
-        self.ast = parse_file(self.filename, use_cpp=True, cpp_args=CPP_ARGS)
+        self.content = open(self.filename, "r").read()            
+        self.ast = parse_file(self.filename, use_cpp=True, cpp_args=self.cpp_args) 
     
     def get_name(self):
         _, module = os.path.split(self.filename)
@@ -33,8 +39,11 @@ class CModule(object):
         if (module.endswith(".C")): module = module.replace(".C","")
         return module;
     
-    def get_file(self):
+    def get_filename(self):
         return os.path.abspath(self.filename)
+    
+    def __repr__(self):
+        return "<CModule %s filename='%s'>" % (self.get_name(), self.get_filename())
     
 ########################################################################################################################
 
@@ -309,40 +318,59 @@ class DoubleImplementationGenerator(Generator):
               
 ## CLI #################################################################################################################
     
-def parse_args(): # FIXME using optparse
-    parser = argparse.ArgumentParser(description='Automatically generates cmockery double for a given c module')
-    subparsers = parser.add_subparsers(help="available commands", dest="action")
+def parse_args():
+    parser = optparse.OptionParser(
+        usage="%prog [options] <FILE>", 
+        description="Automatically generates and add cmockery mocks/stubs/double functions to a C module"
+    )
+
+    parser.add_option("-I", action="append", default=[], dest="includes", metavar="<DIR>", 
+                      help="Add the directory <DIR> to the list of directories to be searched for header files.")
+    parser.add_option("-D", action="append", default=[], dest="defines", metavar="<NAME>", 
+                      help="Predefine <NAME> as a macro, with definition 1")
+    parser.add_option("-o", action="store", default=None, dest="output", metavar="<FILE>",
+                      help="Sets <FILE> as output. Default is standard output")
+    args, remaining = parser.parse_args()
         
-    prepare_parser = subparsers.add_parser("prepare", help="generates a double description file that can be tweaked by hand from a C module")
-    prepare_parser.add_argument("file", metavar="FILE", help="input C module")
-    prepare_parser.add_argument("-o", "--output", metavar="FILE", help="output file")
+    if len(remaining) != 1: 
+        parser.print_help()
+        sys.exit(-1)
+        
+    args.input  = remaining[0]
+    args.cpp_args = [ r"-nostdinc" ]
 
-    mock_parser = subparsers.add_parser("mock", help="compiles a cmockery mock/stub module from a double description file")
-    mock_parser.add_argument("file", metavar="FILE", help="input double description module")
-    mock_parser.add_argument("-o", "--output", metavar="FILE", help="output file")
-
-    clone_parser = subparsers.add_parser("clone", help="prepares and compiles a gefault cmockery mock/stub module from a C module")
-    clone_parser.add_argument("file", metavar="FILE", help="input C module")
-    clone_parser.add_argument("-o", "--output", metavar="FILE", help="output file")
-            
-    return parser.parse_args()
+    for dir in args.includes:
+        args.cpp_args.append(r"-I" + dir)
+    for name in args.defines:
+        args.cpp_args.append(r"-D" + name)
     
+    return args
+    
+         
 ########################################################################################################################
     
 if __name__=="__main__":
-    
     args = parse_args()
+    
+    module = CModule(args.input, cpp_args=args.cpp_args)
+    module.parse()
+    module.ast.show()
 
-    if (args.action == "prepare"):
-        module = CModule(args.file)
-        module.parse()
-        DoubleDescriptionGenerator(module, args.output).generate()
-    elif (args.action == "mock"):
-        module = CModule(args.file)
-        module.parse()
-        DoubleHeaderGenerator(module, args.output).generate()        
-    elif (args.action == "clone"):
-        module = CModule(args.file)
-        module.parse()
-        DoubleHeaderGenerator(module).generate()
-        DoubleImplementationGenerator(module).generate()
+#    module = CModule(args.input)
+
+    
+#    args = parse_args()
+#
+#    if (args.action == "prepare"):
+#        module = CModule(args.file)
+#        module.parse()
+#        DoubleDescriptionGenerator(module, args.output).generate()
+#    elif (args.action == "mock"):
+#        module = CModule(args.file)
+#        module.parse()
+#        DoubleHeaderGenerator(module, args.output).generate()        
+#    elif (args.action == "clone"):
+#        module = CModule(args.file)
+#        module.parse()
+#        DoubleHeaderGenerator(module).generate()
+#        DoubleImplementationGenerator(module).generate()

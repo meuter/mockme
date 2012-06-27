@@ -6,4 +6,14 @@
 #include <setjmp.h>
 #include <mockme/cmockery.h>
 
+#define INPUT_VALUE(value)
+#define INPUT_MEMORY(ptr, size)
+#define INPUT_STRING(value)
+
+#define __FIRST_ARG(x, args...)\
+	x
+
+#define DEFAULT_STUB(args...)\
+	return __FIRST_ARG(args)
+
 #endif
