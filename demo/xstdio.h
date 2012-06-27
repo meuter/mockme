@@ -5,6 +5,9 @@
 
 #ifdef UNDER_TEST
 
+void STUB_xfprintf(int return_value);
+void MOCK_xfprintf(FILE *stream, const char *format);
+int UNDER_TEST_xfprintf(FILE *stream, const char *format, ...);
 int xfprintf(FILE *stream, const char *format, ...);
 
 #else

@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include "utils.h"
-#include "xstdio.h"
 
 DEFINE_FUNCTION(int, print_as_ascii_hex,
 	FILE *output,

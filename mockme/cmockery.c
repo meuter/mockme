@@ -672,7 +672,7 @@ void disable_auto_stubs()
 int _has_mock(const char * const function) {
 
 	ListNode *found;
-	return list_find(&global_function_result_map_head, &function,
+	return list_find(&global_function_result_map_head, function,
 				     symbol_names_match, &found);
 }
 // <MOCKME>

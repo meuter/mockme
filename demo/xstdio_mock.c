@@ -10,7 +10,7 @@ void STUB_xfprintf(int return_value)
 void MOCK_xfprintf(FILE *stream, const char *format)
 {
     expect_value(xfprintf, stream, stream);
-    expect_value(xfprintf, format, format);
+    expect_string(xfprintf, format, format);
     will_return(xfprintf, 1);
 }
 
