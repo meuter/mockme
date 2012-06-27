@@ -4,6 +4,8 @@ demo = root.Clone()
 demo.MergeFlags("-I#include")
 demo.Program("demo", Split("demo.c"))
 
+#FIXME generate the doubles using mockme
+
 test = root.Clone()
 test["OBJSUFFIX"] = ".test.o"
 test.MergeFlags("-I#include")
