@@ -1,4 +1,4 @@
-- add support for OUTPUT_VALUE in MockGenerator class in genmock
-- add support for OUTPUT_STRING in MockGenerator class in genmock
-- add support for OUTPUT_MEMORY in MockGenerator class in genmock
+- add support for OUTPUT_VALUE in MockGenerator class in mockme
+- add support for OUTPUT_STRING in MockGenerator class in mockme
+- add support for OUTPUT_MEMORY in MockGenerator class in mockme
 - fix the MockMe scons target in SConstruct to get the CPPPATH and CPPDEFINES from the env
