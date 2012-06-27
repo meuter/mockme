@@ -10,6 +10,22 @@
 
 /** mocks/stubs********************************************************************************************************/
 
+int do_stuff(void)
+{
+	DEFAULT_STUB(0);
+}
+
+void do_other_stuff(int x)
+{
+	INPUT_VALUE(x);
+	DEFAULT_STUB();
+}
+
+void do_some_other_stuff(void)
+{
+	DEFAULT_STUB();
+}
+
 int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 {
 	INPUT_VALUE(output);
@@ -17,12 +33,12 @@ int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 	DEFAULT_STUB(0);
 }
 
-//int xfprintf(FILE *stream, const char *format, ...)
-//{
-//	INPUT_VALUE(stream);
-//	INPUT_STRING(format);
-//	DEFAULT_STUB(1);
-//}
+int xfprintf(FILE *stream, const char *format, ...)
+{
+	INPUT_VALUE(stream);
+	INPUT_STRING(format);
+	DEFAULT_STUB(1);
+}
 
 /** tests *************************************************************************************************************/
 

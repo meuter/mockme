@@ -11,4 +11,7 @@ test["OBJSUFFIX"] = ".test.o"
 test.MergeFlags("-I#include")
 test.MergeFlags("-DUNDER_TEST")
 test.MergeFlags("-lmockme -L#mockme")
-test.UnitTest("demo_unit_test", Split("demo.c demo_unit_test.c"))
+
+mockme = Action("cd %s && mockme/mockme -Iinclude -Iinclude/mockme/fake_libc $SOURCE -o $TARGET" % Dir("#"), "   MOCK  $SOURCE")
+test.Command("demo_unit_test_mocked.c", "demo_unit_test.c", mockme)
+test.UnitTest("demo_unit_test", Split("demo.c demo_unit_test_mocked.c"))

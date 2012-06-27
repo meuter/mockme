@@ -45,6 +45,30 @@ class FunctionArgument(object):
 
 ########################################################################################################################
 
+class DoubleDefinitionMacro(object):
+    
+    def __init__(self, node):        
+        self.node = node
+
+    def get_macro(self):
+        return self.node.name.name
+    
+    def get_arguments(self):
+        expr_list = dict(self.node.children()).get("args", None)
+        if expr_list:
+            generator = c_generator.CGenerator()
+            return [ generator.visit(expr) for _, expr in expr_list.children() ]
+        else:
+            return []
+        
+
+class DoubleDefinition:
+    
+    def __init__(self, node):
+        self.node = node
+
+########################################################################################################################
+
 class FunctionDefinition(object):
     
     def __init__(self, node):
@@ -60,34 +84,49 @@ class FunctionDefinition(object):
         return return_type_and_function_name[:-len(self.get_name())].strip()
          
     def get_default_stub_arguments(self):
-        # FIXME: use info provided in macro
-        return_type = self.get_return_type()
-        if   return_type == "void":  happy_value = "NULL";
-        elif return_type == "rc_t": happy_value  = "RC_OK";
-        else: happy_value = "happy_value"
-        return happy_value  
+        for _, instruction in self.get_body().children():            
+            called = instruction.name.name
+            if called == "DEFAULT_STUB":
+                args = dict(instruction.children()).get("args", None)
+                if args:
+                    generator = c_generator.CGenerator()
+                    return generator.visit(args)
+                else:
+                    return ""
+
+    def get_happy_return_value(self):
+        for _, instruction in self.get_body().children():            
+            called = instruction.name.name
+            if called == "DEFAULT_STUB":
+                args = dict(instruction.children()).get("args", None)
+                if args:
+                    generator = c_generator.CGenerator()
+                    return generator.visit(args)
+                else:
+                    return "NULL"        
          
     def get_arguments(self):
         generator = c_generator.CGenerator()
         args = dict(self.node.decl.type.children()).get('args', None)
         if not args: return []
     
-        args = dict(args.children())
         result = []
-        for arg in args.values():                    
-            declaration = generator._generate_type(dict(arg.children())['type'])
-            if arg.name: result.append(FunctionArgument(arg.name, declaration))
+        for _, arg in args.children():   
+            type_declaration = dict(arg.children()).get('type', None)
+            if (type_declaration):
+                declaration = generator._generate_type(dict(arg.children())['type'])
+                if arg.name: result.append(FunctionArgument(arg.name, declaration))
         return result                  
             
     def get_arguments_declaration(self):
         return ", ".join(arg.get_declaration() for arg in self.get_arguments())
-    
+                
     def get_file(self):
         return os.path.abspath(self.node.coord.file)
     
     def get_body(self):
         return dict(self.node.children()).get("body", None)
-    
+        
     def is_double(self):
         body = self.get_body()
         
@@ -123,8 +162,8 @@ class MockGenerator(object):
         self.module = module
         self.output = output        
 
-    def writeln(self, test):
-        self.output.write(test + "\n")
+    def writeln(self, text=""):
+        self.output.write(text + "\n")
         
     def write(self, text):
         self.output.write(text)
@@ -146,24 +185,60 @@ class MockGenerator(object):
         function_name        = func_def.get_name()
         return_type          = func_def.get_return_type()
         arguments            = func_def.get_arguments()
-        happy_value          = func_def.get_default_stub_arguments()   
+        default_stub_args    = func_def.get_default_stub_arguments()   
         return_or_not_return = "return " if return_type != "void" else ""
         
         self.writeln("    if (auto_stub())")
-        self.writeln("        STUB_{function_name}({happy_value});".format(**locals())) 
+        self.writeln("        STUB_{function_name}({default_stub_args});".format(**locals())) 
         for arg in arguments:
             self.writeln("    check_expected({name});".format(name=arg.get_name()))
-        self.writeln("    {return_or_not_return}({return_type})mock();".format(**locals()))              
-        self.output.write("\n")        
+        self.writeln("    {return_or_not_return}({return_type})mock();".format(**locals()))
+        self.writeln()        
         
 
     def generate_mock(self, func_def):
-        self.output.write("// mock for %s\n" % func_def.get_name())
-        self.output.write("\n")        
+        return_type      = func_def.get_return_type()
+        function_name    = func_def.get_name()
+        arguments        = func_def.get_arguments()
+        formal_arguments = func_def.get_arguments_declaration()
+        happy_value      = func_def.get_happy_return_value()   
+        
+        self.writeln("void MOCK_{function_name}({formal_arguments})".format(**locals()))
+        self.writeln("{")
+        for _, instruction in func_def.get_body().children():
+            macro_call = DoubleDefinitionMacro(instruction)
+            if macro_call.get_macro() == "INPUT_VALUE":
+                value = macro_call.get_arguments()[0]
+                self.writeln("    expect_value({function_name}, {value}, {value});".format(**locals()))
+            elif macro_call.get_macro() == "INPUT_STRING":
+                value = macro_call.get_arguments()[0]
+                self.writeln("    expect_string({function_name}, {value}, {value});".format(**locals()))
+            elif macro_call.get_macro() == "INPUT_MEMORY":
+                ptr = macro_call.get_arguments()[0]
+                size = macro_call.get_arguments()[1]
+                self.writeln("    expect_value({function_name}, {size}, {size});".format(**locals()))
+                self.writeln("    expect_memory({function_name}, {ptr}, {ptr}, {size});".format(**locals()))
+
+        self.writeln("    will_return({function_name}, {happy_value});".format(**locals()))
+        self.writeln("}")    
+        self.writeln()    
         
     def generate_stub(self, func_def):
-        self.output.write("// stub for %s\n" % func_def.get_name())        
-        self.output.write("\n")        
+        return_type      = func_def.get_return_type()
+        function_name    = func_def.get_name()
+        arguments        = func_def.get_arguments()
+        formal_arguments = return_type + " return_value" if return_type != "void" else ""
+        return_value     = "return_value" if return_type != "void" else "NULL"
+                
+        self.writeln("")
+        self.writeln("void STUB_{function_name}({formal_arguments})".format(**locals()))
+        self.writeln("{")
+        for arg in arguments:
+            name = arg.get_name()
+            self.writeln("    expect_any({function_name}, {name});".format(**locals()))
+        self.writeln("    will_return({function_name}, {return_value});".format(**locals()))
+        self.writeln("}")
+        self.writeln()        
 
     def generate(self):                
         double_definitions = self.collect_double()
@@ -182,54 +257,16 @@ class MockGenerator(object):
                 if lineno == double.get_first_line():
                     self.generate_stub(double)
                     self.generate_mock(double)
-                    self.output.write(lines[lineno] + "\n")
+                    self.writeln(lines[lineno])
                     lineno +=1                    
                 elif lineno in double.get_body_range():
                     self.generate_double_body(double)
                     lineno = double.get_body_range()[-1]+1
             else: 
-                self.output.write(lines[lineno] + "\n")
+                self.writeln(lines[lineno])
                 lineno += 1
-    
-
+           
 ########################################################################################################################
-  
-""" OLD CODE:                     
-            def gen_stub(self, func_def):
-                return_type      = func_def.get_return_type()
-                function_name    = func_def.get_function_name()
-                arguments        = func_def.get_arguments()
-                formal_arguments = return_type + " return_value" if return_type != "void" else ""
-                return_value     = "return_value" if return_type != "void" else "NULL"
-                
-                lines.append("")
-                lines.append("void STUB_{function_name}({formal_arguments})".format(**locals()))
-                lines.append("{")
-                for arg in arguments:
-                    name = arg.get_name()
-                    lines.append("    expect_any({function_name}, {name});".format(**locals()))
-                lines.append("    will_return({function_name}, {return_value});".format(**locals()))
-                lines.append("}")
-                    
-            
-            def gen_mock(self, func_def):
-                return_type      = func_def.get_return_type()
-                function_name    = func_def.get_function_name()
-                arguments        = func_def.get_arguments()
-                formal_arguments = func_def.get_arguments_declaration()
-                happy_value      = func_def.get_default_stub_arguments()   
-                
-                lines.append("void MOCK_{function_name}({formal_arguments})".format(**locals()))
-                lines.append("{")
-                for arg in arguments:
-                    name = arg.get_name()
-                    lines.append("    expect_value({function_name}, {name}, {name});".format(**locals()))
-                lines.append("    will_return({function_name}, {happy_value});".format(**locals()))
-                lines.append("}")
-                    
-"""
-              
-## CLI #################################################################################################################
     
 def parse_args():
     parser = optparse.OptionParser(
@@ -250,10 +287,11 @@ def parse_args():
         sys.exit(-1)
         
     args.input  = remaining[0]
-    args.output = open(args.output, "r") if args.output else sys.stdout
+    args.output = open(args.output, "w") if args.output else sys.stdout
     args.cpp_args = [ 
         r"-nostdinc",
-        r"-DMOCK_ME", 
+        r"-DMOCK_ME",
+        r"-DUNDER_TEST" 
     ]
 
     for dir in args.includes:
@@ -272,21 +310,3 @@ if __name__=="__main__":
     module.parse()
     MockGenerator(module, args.output).generate()
 
-#    module = CModule(args.input)
-
-    
-#    args = parse_args()
-#
-#    if (args.action == "prepare"):
-#        module = CModule(args.file)
-#        module.parse()
-#        DoubleDescriptionGenerator(module, args.output).generate()
-#    elif (args.action == "mock"):
-#        module = CModule(args.file)
-#        module.parse()
-#        DoubleHeaderGenerator(module, args.output).generate()        
-#    elif (args.action == "clone"):
-#        module = CModule(args.file)
-#        module.parse()
-#        DoubleHeaderGenerator(module).generate()
-#        DoubleImplementationGenerator(module).generate()
