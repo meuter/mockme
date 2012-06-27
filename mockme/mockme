@@ -6,19 +6,6 @@ import optparse
 
 from pycparser import parse_file, c_ast, c_generator
 
-"""
-            pipe = Popen(   path_list, 
-                            stdout=PIPE, 
-                            universal_newlines=True)
-            text = pipe.communicate()[0]
-        except OSError as e:
-            raise RuntimeError("Unable to invoke 'cpp'.  " +
-                'Make sure its path was passed correctly\n' +
-                ('Original error: %s' % e))
-    else:
-        text = open(filename, 'rU').read()
-"""
-
 ########################################################################################################################
 
 class CModule(object):
@@ -41,10 +28,7 @@ class CModule(object):
     
     def get_filename(self):
         return os.path.abspath(self.filename)
-    
-    def __repr__(self):
-        return "<CModule %s filename='%s'>" % (self.get_name(), self.get_filename())
-    
+        
 ########################################################################################################################
 
 class FunctionArgument(object):
@@ -66,7 +50,7 @@ class FunctionDefinition(object):
     def __init__(self, node):
         self.node = node
             
-    def get_function_name(self):
+    def get_name(self):
         return self.node.decl.name
 
     def get_return_type(self):
@@ -99,38 +83,101 @@ class FunctionDefinition(object):
     
     def get_file(self):
         return os.path.abspath(self.node.coord.file)
+    
+    def get_body(self):
+        return dict(self.node.children()).get("body", None)
+    
+    def is_double(self):
+        body = self.get_body()
         
+        DOUBLE_MACROS = [
+            "INPUT_VALUE", "INPUT_MEMORY", "INPUT_STRING",
+            "OUTPUT_VALUE", "OUTPUT_MEMORY", "OUTPUT_STRING",
+            "DEFAULT_STUB"
+        ]
+        
+        for _, instruction in body.children():            
+            if not isinstance(instruction, c_ast.FuncCall):
+                return False
+            called = instruction.name.name
+            if called not in DOUBLE_MACROS:
+                return False
+                    
+        return True
+    
+    def get_first_line(self):
+        return self.node.decl.coord.line-1
+    
+    def get_body_range(self):
+        body = self.get_body()
+        _, last_instruction = body.children()[-1]
+        _, first_instruction = body.children()[0]
+        return range(first_instruction.coord.line-1, last_instruction.coord.line)
+                
 ########################################################################################################################
 
-class Generator(object):
+class MockGenerator(object):
     
     def __init__(self, module, output):
         self.module = module
-        self.output = output
+        self.output = output        
 
-    def gen_header(self, lines):
-        pass
-               
-    def gen_body(self, lines):
-        pass
+
+    def collect_double(self):
+        result = []
+                
+        class Visitor(c_ast.NodeVisitor):
     
-    def gen_footer(self, lines):
-        pass
+            def visit_FuncDef(self, node):
+                func_def = FunctionDefinition(node)
+                if func_def.is_double():
+                     result.append(func_def)
+                                
+        Visitor().visit(self.module.ast)
+        return result
+
+    def generate_double(self, func_def):
+        self.output.write("    // double body for %s\n" % func_def.get_name())        
+        self.output.write("\n")        
+
+    def generate_mock(self, func_def):
+        self.output.write("// mock for %s\n" % func_def.get_name())
+        self.output.write("\n")        
         
-    def write_lines(self, lines):        
-        output_file = open(self.output, "w")
-        output_file.write("\n".join(lines))
-        output_file.close()
-    
-    def generate(self):
-        lines = []
-        self.gen_header(lines)
-        self.gen_body(lines)
-        self.gen_footer(lines)
-        self.write_lines(lines)
+    def generate_stub(self, func_def):
+        self.output.write("// stub for %s\n" % func_def.get_name())        
+        self.output.write("\n")        
+
+    def generate(self):                
+        double_definitions = self.collect_double()
+        
+        line_map = {}        
+        for double in double_definitions:
+            for i in double.get_body_range():
+                line_map[i] = double
+            line_map[double.get_first_line()] = double
+
+        lines  = self.module.content.splitlines()
+        lineno = 0
+        while lineno < len(lines):
+            double = line_map.get(lineno, None)
+            if double:            
+                if lineno == double.get_first_line():
+                    self.generate_stub(double)
+                    self.generate_mock(double)
+                    self.output.write(lines[lineno] + "\n")
+                    lineno +=1                    
+                elif lineno in double.get_body_range():
+                    self.generate_double(double)
+                    lineno = double.get_body_range()[-1]+1
+            else: 
+                self.output.write(lines[lineno] + "\n")
+                lineno += 1
+        
+
 
 ########################################################################################################################
-    
+"""    
 class DoubleDescriptionGenerator(Generator):
     
     def __init__(self, module, output=None):
@@ -315,6 +362,7 @@ class DoubleImplementationGenerator(Generator):
     
     def gen_footer(self, lines):
         lines.append("")
+"""
               
 ## CLI #################################################################################################################
     
@@ -337,6 +385,7 @@ def parse_args():
         sys.exit(-1)
         
     args.input  = remaining[0]
+    args.output = open(args.output, "r") if args.output else sys.stdout
     args.cpp_args = [ 
         r"-nostdinc",
         r"-DMOCK_ME", 
@@ -354,10 +403,9 @@ def parse_args():
     
 if __name__=="__main__":
     args = parse_args()
-    
     module = CModule(args.input, cpp_args=args.cpp_args)
     module.parse()
-    module.ast.show()
+    MockGenerator(module, args.output).generate()
 
 #    module = CModule(args.input)
 
