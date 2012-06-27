@@ -10,9 +10,8 @@ from pycparser import parse_file, c_ast, c_generator
 
 CPP_ARGS = [
     r"-nostdinc",
-    r"-Iadyton-mock/include/fake_libc",
-    r"-Iadyton-mock/include",
-    r"-Iadyton-core/include",
+    r"-Iinclude/mockme/fake_libc",
+    r"-Iinclude/"
 ]
 
 ########################################################################################################################
@@ -271,7 +270,7 @@ class DoubleImplementationGenerator(Generator):
                 lines.append("{")
                 for arg in arguments:
                     name = arg.get_name()
-                    lines.append("    expect_value({function_name}, {name});".format(**locals()))
+                    lines.append("    expect_value({function_name}, {name}, {name});".format(**locals()))
                 lines.append("    will_return({function_name}, {happy_value});".format(**locals()))
                 lines.append("}")
                     
@@ -287,9 +286,9 @@ class DoubleImplementationGenerator(Generator):
                 lines.append("{return_type} {function_name}({formal_arguments})".format(**locals()))
                 lines.append("{")
                 lines.append("    if (default_stub())")
-                lines.append("        STUB_{function_name}({happy_value})".format(**locals()))
+                lines.append("        STUB_{function_name}({happy_value});".format(**locals()))
                 for arg in arguments:
-                    lines.append("    check_expected({name})".format(name=arg.get_name()))
+                    lines.append("    check_expected({name});".format(name=arg.get_name()))
                 lines.append("    {return_or_not_return}({return_type})mock();".format(**locals()))
                 lines.append("}")
 
@@ -310,10 +309,10 @@ class DoubleImplementationGenerator(Generator):
               
 ## CLI #################################################################################################################
     
-def parse_args():
+def parse_args(): # FIXME using optparse
     parser = argparse.ArgumentParser(description='Automatically generates cmockery double for a given c module')
     subparsers = parser.add_subparsers(help="available commands", dest="action")
-    
+        
     prepare_parser = subparsers.add_parser("prepare", help="generates a double description file that can be tweaked by hand from a C module")
     prepare_parser.add_argument("file", metavar="FILE", help="input C module")
     prepare_parser.add_argument("-o", "--output", metavar="FILE", help="output file")

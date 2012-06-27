@@ -1,0 +1,12 @@
+Import("root")
+
+demo = root.Clone()
+demo.MergeFlags("-I#include")
+demo.Program("demo", Split("demo.c"))
+
+test = root.Clone()
+test["OBJSUFFIX"] = ".test.o"
+test.MergeFlags("-I#include")
+test.MergeFlags("-DUNDER_TEST")
+test.MergeFlags("-lmockme -L#mockme")
+test.UnitTest("demo_unit_test", Split("demo.c demo_unit_test.c demo_double.c"))

@@ -1,0 +1,5 @@
+Import("root")
+
+mockme = root.Clone()
+mockme.MergeFlags("-I#include/mockme")
+mockme.Library("mockme", Split("cmockery.c"))

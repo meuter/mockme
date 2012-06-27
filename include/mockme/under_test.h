@@ -1,7 +1,7 @@
-#ifndef __MOCKME_H__
-#define __MOCKME_H__
+#ifndef __MOCKME_UNDER_TEST_H__
+#define __MOCKME_UNDER_TEST_H__
 
-#ifndef MOCKME
+#ifndef UNDER_TEST
 
 	#define DECLARE_FUNCTION(return_type, name, args...)\
 		return_type name(args)
