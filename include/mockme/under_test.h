@@ -2,7 +2,7 @@
 #define __MOCKME_UNDER_TEST_H__
 
 #define DECLARE_FUNCTION(return_type, name, args...)\
-	void STUB_ ## name(return_type return_value);\
+	void STUB_ ## name(return_type);\
 	void MOCK_ ## name(args);\
 	return_type UNDER_TEST_ ## name(args);\
 	return_type name(args)

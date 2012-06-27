@@ -1,30 +1,16 @@
 #include <mockme/test.h>
 #include <mockme/mock.h>
-#include "utils.h"
+#include <stdlib.h>
+#include <stdint.h>
+#include "xstdio.h"
 
-/** test data *********************************************************************************************************/
+/**********************************************************************************************************************/
 
 #define TEST_OUTPUT  ((FILE*)0x666)
 #define TEST_BYTES   ((uint8_t *)"abcde")
 #define TEST_SIZE    (5)
 
-/** mocks/stubs********************************************************************************************************/
-
-int do_stuff(void)
-{
-	DEFAULT_STUB(0);
-}
-
-void do_other_stuff(int x)
-{
-	INPUT_VALUE(x);
-	DEFAULT_STUB();
-}
-
-void do_some_other_stuff(void)
-{
-	DEFAULT_STUB();
-}
+/**********************************************************************************************************************/
 
 int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 {
@@ -40,7 +26,31 @@ int xfprintf(FILE *stream, const char *format, ...)
 	DEFAULT_STUB(1);
 }
 
-/** tests *************************************************************************************************************/
+void print_prefix()
+{
+	DEFAULT_STUB();
+}
+
+const char *get_prefix()
+{
+	DEFAULT_STUB("***");
+}
+
+/**********************************************************************************************************************/
+
+static void test__print_prefix__calls_fprintf()
+{
+	MOCK(xfprintf, stdout, "%s");
+	CALL(print_prefix());
+}
+
+/**********************************************************************************************************************/
+
+static void test__print_as_scii_hex__print_prefix()
+{
+	MOCK(print_prefix);
+	CALL(print_as_ascii_hex(TEST_OUTPUT, TEST_BYTES, TEST_SIZE));
+}
 
 static void test__print_as_ascii_hex__returns_0_on_success()
 {
@@ -77,22 +87,53 @@ static void test__print_as_ascii_hex__returns_minus_1_if_fprintf_of_trailing_new
 static void test__print_as_ascii_hex__does_nothing_else()
 {
 	disable_auto_stubs();
+	STUB(print_prefix);
 	N_STUB(TEST_SIZE, xfprintf, 1);
 	STUB(xfprintf, 1);
 	CALL(print_as_ascii_hex(TEST_OUTPUT, TEST_BYTES, TEST_SIZE));
+}
+
+/**********************************************************************************************************************/
+
+int UNDER_TEST_main();
+
+static void test__main__returns_EXIT_FAILURE_if_print_as_ascii_hex_fails()
+{
+	STUB(print_as_ascii_hex, -1);
+	CALL(main());
+}
+
+static void test__main__prints_some_bytes()
+{
+	const uint8_t bytes[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+	MOCK(print_as_ascii_hex, stdout, bytes, sizeof(bytes));
+	CALL(main());
+}
+
+static void test__main__returns_EXIT_SUCCESS_on_success()
+{
+	assert_int_equal(CALL(main()), EXIT_SUCCESS);
 }
 
 /** main **************************************************************************************************************/
 
 int main()
 {
-	unit_test_t all_tests[] = {
+	unit_test_t all_tests[] =
+	{
+		unit_test(test__print_prefix__calls_fprintf),
+
+		unit_test(test__print_as_scii_hex__print_prefix),
 		unit_test(test__print_as_ascii_hex__returns_0_on_success),
 		unit_test(test__print_as_ascii_hex__prints_all_bytes),
 		unit_test(test__print_as_ascii_hex__returns_minus_1_if_fprintf_of_one_byte_fails),
 		unit_test(test__print_as_ascii_hex__prints_trailing_new_line),
 		unit_test(test__print_as_ascii_hex__returns_minus_1_if_fprintf_of_trailing_newline),
 		unit_test(test__print_as_ascii_hex__does_nothing_else),
+
+		unit_test(test__main__returns_EXIT_SUCCESS_on_success),
+		unit_test(test__main__prints_some_bytes),
+		unit_test(test__main__returns_EXIT_FAILURE_if_print_as_ascii_hex_fails),
 	};
 
 	return run_tests(all_tests);

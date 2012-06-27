@@ -21,9 +21,11 @@ def UnitTest(self, target, source):
     self.Command(target + ".res", target, action)
     
 def MockMe(self, target, source):
-    # FIXME get the CPPDEFINES and CPPPATH from self instead of hardcode it
-    mockme = Action("cd %s && mockme/mockme -Iinclude -Iinclude/mockme/fake_libc $SOURCE -o $TARGET" % Dir("#"),
-                    "   MOCK  $SOURCE")
+    self["MOCKME_DEFINES"] = " ".join("-D" + x for x in self["CPPDEFINES"])
+    self["MOCKME_PATH"]    = " ".join("-I" + str(Dir(x)) for x in self["CPPPATH"])
+    self["SCONS_ROOT"]     = Dir("#").abspath + "/"
+    mockme = Action("${SCONS_ROOT}mockme/mockme $MOCKME_DEFINES $MOCKME_PATH -I${SCONS_ROOT}include/mockme/fake_libc $SOURCE -o $TARGET",
+                    "   MOCK  ${TARGET}")
     self.Command(target, source, mockme)
     
 ########################################################################################################################

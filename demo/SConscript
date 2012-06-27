@@ -4,8 +4,7 @@ demo = root.Clone()
 demo.MergeFlags("-I#include")
 demo.Program("demo", Split("demo.c"))
 
-test = root.Clone()
-test["OBJSUFFIX"] = ".test.o"
+test = root.Clone(OBJSUFFIX=".test.o")
 test.MergeFlags("-I#include")
 test.MergeFlags("-DUNDER_TEST")
 test.MergeFlags("-lmockme -L#mockme")
