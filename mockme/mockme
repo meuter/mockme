@@ -247,14 +247,6 @@ class MockGenerator(object):
         self.writeln("}")
         self.writeln()        
 
-    def generate_under_test_declaration(self, func_def):
-        return_type      = func_def.get_return_type()
-        function_name    = func_def.get_name()
-        formal_arguments = func_def.get_arguments_declaration()
-        
-        self.writeln("{return_type} UNDER_TEST_{function_name}({formal_arguments});".format(**locals()))
-        self.writeln()
-
     def generate(self):                
         double_definitions = self.collect_double()
         
@@ -270,7 +262,6 @@ class MockGenerator(object):
             double = line_map.get(lineno, None)
             if double:            
                 if lineno == double.get_first_line():
-                    self.generate_under_test_declaration(double)
                     self.generate_stub(double)
                     self.generate_mock(double)
                     self.writeln(lines[lineno])

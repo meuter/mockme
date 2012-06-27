@@ -1,8 +1,8 @@
 #include <mockme/test.h>
 #include <mockme/mock.h>
+
 #include <stdlib.h>
-#include <stdint.h>
-#include "xstdio.h"
+#include "demo.h"
 
 /**********************************************************************************************************************/
 
@@ -33,7 +33,7 @@ void print_prefix()
 
 const char *get_prefix()
 {
-	DEFAULT_STUB("***");
+	DEFAULT_STUB("> ");
 }
 
 /**********************************************************************************************************************/

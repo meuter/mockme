@@ -1,13 +1,7 @@
 #include <mockme/under_test.h>
-#include <stdint.h>
 #include <stdlib.h>
 
-#include "utils.h"
-
-DECLARE_FUNCTION(const char *, get_prefix);
-DECLARE_FUNCTION(void, print_prefix);
-
-
+#include "demo.h"
 
 DEFINE_FUNCTION(const char *, get_prefix)
 {

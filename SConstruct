@@ -26,7 +26,7 @@ def MockMe(self, target, source):
     self["SCONS_ROOT"]     = Dir("#").abspath + "/"
     mockme = Action("${SCONS_ROOT}mockme/mockme $MOCKME_DEFINES $MOCKME_PATH -I${SCONS_ROOT}include/mockme/fake_libc $SOURCE -o $TARGET",
                     "   MOCK  ${TARGET}")
-    self.Command(target, source, mockme)
+    self.Command(target, [ source, "#mockme/mockme" ], mockme)
     
 ########################################################################################################################
 
