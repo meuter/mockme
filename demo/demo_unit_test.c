@@ -17,12 +17,12 @@ int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 	DEFAULT_STUB(0);
 }
 
-int xfprintf(FILE *stream, const char *format, ...)
-{
-	INPUT_VALUE(stream);
-	INPUT_STRING(format);
-	DEFAULT_STUB(1);
-}
+//int xfprintf(FILE *stream, const char *format, ...)
+//{
+//	INPUT_VALUE(stream);
+//	INPUT_STRING(format);
+//	DEFAULT_STUB(1);
+//}
 
 /** tests *************************************************************************************************************/
 
