@@ -39,4 +39,8 @@ cmockery = root.Clone()
 cmockery.MergeFlags("-Iinclude/mockme")
 cmockery.Library("mock", Split("mock/cmockery.c"))
 
+demo = root.Clone()
+demo.MergeFlags("-Iinclude")
+demo.Program("demo/demo", Split("demo/demo.c"))
+
 
