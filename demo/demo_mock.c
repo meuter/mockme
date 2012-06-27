@@ -20,8 +20,8 @@ void MOCK_print_as_ascii_hex(FILE *output, const size_t size, const uint8_t *byt
 
 int print_as_ascii_hex(FILE *output, const size_t size, const uint8_t *bytes)
 {
-//    if (default_stub()) ## FIXME
-//        STUB_print_as_ascii_hex(0);
+    if (auto_stub())
+        STUB_print_as_ascii_hex(0);
     check_expected(output);
     check_expected(size);
     check_expected(bytes);

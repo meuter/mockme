@@ -35,6 +35,12 @@
 // Retrieves a return value for the current function.
 #define mock() _mock(__func__, __FILE__, __LINE__)
 
+// <MOCKME>
+// Checks if a function has as been mocked
+#define has_mock()   _has_mock(__func__)
+#define auto_stub()  _auto_stub(__func__)
+// </MOCKME>
+
 /* Stores a value to be returned by the specified function later.
  * The count parameter returns the number of times the value should be returned
  * by mock().  If count is set to -1 the value will always be returned.
@@ -322,6 +328,13 @@ extern jmp_buf global_expect_assert_env;
 // Retrieves a value for the given function, as set by "will_return".
 void* _mock(const char * const function, const char* const file, 
             const int line);
+
+// <MOCKME>
+// Checks if a value has been set for the given function, as set by "will_return".
+int _auto_stub(const char * const function_name);
+int _has_mock(const char * const function_name);
+void disable_auto_stubs();
+// </MOCKME>
 
 void _expect_check(
     const char* const function, const char* const parameter, 

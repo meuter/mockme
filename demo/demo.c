@@ -1,7 +1,9 @@
 #include <mockme/under_test.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
+
+#include "utils.h"
+#include "xstdio.h"
 
 DEFINE_FUNCTION(int, print_as_ascii_hex,
 	FILE *output,
@@ -12,10 +14,10 @@ DEFINE_FUNCTION(int, print_as_ascii_hex,
 	uint32_t i;
 
 	for (i = 0; i < size; ++i)
-		if (fprintf(output, "%02X", bytes[i]) < 0)
+		if (xfprintf(output, "%02X", bytes[i]) < 0)
 			return -1;
 
-	if (fprintf(output, "\n") < 0)
+	if (xfprintf(output, "\n") < 0)
 		return -1;
 
 	return 0;

@@ -180,6 +180,11 @@ static SourceLocation global_last_parameter_location;
 // List of all currently allocated blocks.
 static ListNode global_allocated_blocks;
 
+// <MOCKME>
+// Indicates if autostubs are enabled
+static int auto_stub_enabled;
+// </MOCKME>
+
 #ifndef _WIN32
 // Signals caught by exception_handler().
 static const int exception_signals[] = {
@@ -649,6 +654,28 @@ void* _mock(const char * const function, const char* const file,
 	}
 	return NULL;
 }
+
+// <MOCKME>
+// Indicates if a function should be automatically stubbed
+int _auto_stub(const char * const function)
+{
+	return auto_stub_enabled && !_has_mock(function);
+}
+
+// Disables autostub for the current test
+void disable_auto_stubs()
+{
+	auto_stub_enabled = 0;
+}
+
+// Checks if a mock has been set for the specified function
+int _has_mock(const char * const function) {
+
+	ListNode *found;
+	return list_find(&global_function_result_map_head, &function,
+				     symbol_names_match, &found);
+}
+// <MOCKME>
 
 
 // Add a return value for the specified mock function name.
@@ -1491,6 +1518,10 @@ int _run_test(
         const char * const function_name,  const UnitTestFunction Function, 
         void ** const state, const UnitTestFunctionType function_type,
         const void* const heap_check_point) {
+// <MOCKME>
+	auto_stub_enabled = 1;
+// </MOCKME>
+
 	const ListNode * const check_point = heap_check_point ? 
 	    heap_check_point : check_point_allocated_blocks();
 	void *current_state = NULL;
