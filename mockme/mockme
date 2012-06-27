@@ -84,26 +84,16 @@ class FunctionDefinition(object):
         return return_type_and_function_name[:-len(self.get_name())].strip()
          
     def get_default_stub_arguments(self):
-        for _, instruction in self.get_body().children():            
-            called = instruction.name.name
-            if called == "DEFAULT_STUB":
-                args = dict(instruction.children()).get("args", None)
-                if args:
-                    generator = c_generator.CGenerator()
-                    return generator.visit(args)
-                else:
-                    return ""
-
+        for _, instruction in self.get_body().children():
+            macro_call = DoubleDefinitionMacro(instruction)
+            if (macro_call.get_macro() == "DEFAULT_STUB"):
+                return ", ".join(macro_call.get_arguments())
+                        
     def get_happy_return_value(self):
-        for _, instruction in self.get_body().children():            
-            called = instruction.name.name
-            if called == "DEFAULT_STUB":
-                args = dict(instruction.children()).get("args", None)
-                if args:
-                    generator = c_generator.CGenerator()
-                    return generator.visit(args)
-                else:
-                    return "NULL"        
+        for _, instruction in self.get_body().children():
+            macro_call = DoubleDefinitionMacro(instruction)
+            if (macro_call.get_macro() == "DEFAULT_STUB"):
+                return macro_call.get_arguments()[-1]
          
     def get_arguments(self):
         generator = c_generator.CGenerator()
@@ -132,7 +122,7 @@ class FunctionDefinition(object):
         
         DOUBLE_MACROS = [
             "INPUT_VALUE", "INPUT_MEMORY", "INPUT_STRING",
-            "OUTPUT_VALUE", "OUTPUT_MEMORY", "OUTPUT_STRING",
+#            "OUTPUT_VALUE", "OUTPUT_MEMORY", "OUTPUT_STRING", # not supported yet
             "DEFAULT_STUB"
         ]
         
@@ -190,18 +180,24 @@ class MockGenerator(object):
         
         self.writeln("    if (auto_stub())")
         self.writeln("        STUB_{function_name}({default_stub_args});".format(**locals())) 
-        for arg in arguments:
-            self.writeln("    check_expected({name});".format(name=arg.get_name()))
+        for _, instruction in func_def.get_body().children():
+            macro_call = DoubleDefinitionMacro(instruction)
+            if macro_call.get_macro() in [ "INPUT_VALUE", "INPUT_STRING" ]:
+                value = macro_call.get_arguments()[0]
+                self.writeln("    check_expected({value});".format(**locals()))
+            elif macro_call.get_macro() == "INPUT_MEMORY":
+                ptr = macro_call.get_arguments()[0]
+                size = macro_call.get_arguments()[1]
+                self.writeln("    check_expected({size});".format(**locals()))
+                self.writeln("    check_expected({ptr});".format(**locals()))            
         self.writeln("    {return_or_not_return}({return_type})mock();".format(**locals()))
-        self.writeln()        
+    
         
 
     def generate_mock(self, func_def):
-        return_type      = func_def.get_return_type()
         function_name    = func_def.get_name()
-        arguments        = func_def.get_arguments()
         formal_arguments = func_def.get_arguments_declaration()
-        happy_value      = func_def.get_happy_return_value()   
+        happy_value      = func_def.get_happy_return_value()
         
         self.writeln("void MOCK_{function_name}({formal_arguments})".format(**locals()))
         self.writeln("{")
@@ -218,24 +214,29 @@ class MockGenerator(object):
                 size = macro_call.get_arguments()[1]
                 self.writeln("    expect_value({function_name}, {size}, {size});".format(**locals()))
                 self.writeln("    expect_memory({function_name}, {ptr}, {ptr}, {size});".format(**locals()))
-
-        self.writeln("    will_return({function_name}, {happy_value});".format(**locals()))
+        self.writeln("    will_return({function_name}, {happy_value});".format(**locals()))                
         self.writeln("}")    
         self.writeln()    
         
     def generate_stub(self, func_def):
         return_type      = func_def.get_return_type()
         function_name    = func_def.get_name()
-        arguments        = func_def.get_arguments()
         formal_arguments = return_type + " return_value" if return_type != "void" else ""
         return_value     = "return_value" if return_type != "void" else "NULL"
                 
         self.writeln("")
         self.writeln("void STUB_{function_name}({formal_arguments})".format(**locals()))
         self.writeln("{")
-        for arg in arguments:
-            name = arg.get_name()
-            self.writeln("    expect_any({function_name}, {name});".format(**locals()))
+        for _, instruction in func_def.get_body().children():
+            macro_call = DoubleDefinitionMacro(instruction)
+            if macro_call.get_macro() in [ "INPUT_VALUE", "INPUT_STRING" ]:
+                value = macro_call.get_arguments()[0]
+                self.writeln("    expect_any({function_name}, {value});".format(**locals()))
+            elif macro_call.get_macro() == "INPUT_MEMORY":
+                ptr = macro_call.get_arguments()[0]
+                size = macro_call.get_arguments()[1]
+                self.writeln("    expect_any({function_name}, {size});".format(**locals()))
+                self.writeln("    expect_any({function_name}, {ptr});".format(**locals()))
         self.writeln("    will_return({function_name}, {return_value});".format(**locals()))
         self.writeln("}")
         self.writeln()        
