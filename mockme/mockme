@@ -93,7 +93,11 @@ class FunctionDefinition(object):
         for _, instruction in self.get_body().children():
             macro_call = DoubleDefinitionMacro(instruction)
             if (macro_call.get_macro() == "DEFAULT_STUB"):
-                return macro_call.get_arguments()[-1]
+                args = macro_call.get_arguments()
+                if args: 
+                    return args[-1]
+                else:
+                    return "NULL"
          
     def get_arguments(self):
         generator = c_generator.CGenerator()
