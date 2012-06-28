@@ -100,7 +100,7 @@ int UNDER_TEST_main();
 static void test__main__returns_EXIT_FAILURE_if_print_as_ascii_hex_fails()
 {
 	STUB(print_as_ascii_hex, -1);
-	CALL(main());
+	assert_int_equal(EXIT_FAILURE, CALL(main()));
 }
 
 static void test__main__prints_some_bytes()
