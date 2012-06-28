@@ -20,7 +20,7 @@
 #define __HAPPY_RETURN_VALUE(value, args...)\
 	value
 
-#define DEFAULT_STUB(args...)\
+#define RETURN(args...)\
 	return __HAPPY_RETURN_VALUE(args)				// avoid your IDE to go all "missing return statement"
 
 #endif

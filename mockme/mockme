@@ -161,13 +161,13 @@ class DoubleDefinition(FunctionDefinition):
     """
     represents a double definition i.e. a classical function definition whose body is only composed of 
     macro call to INPUT_VALUE, INPUT_STRING, INPUT_MEMORY, OUTPUT_VALUE, OUTPUT_STRING, OUTPUT_MEMORY,
-    or DEFAULT_STUB
+    or RETURN
     """
     
     DOUBLE_MACROS = [
             "INPUT_VALUE", "INPUT_MEMORY", "INPUT_STRING",
 #            "OUTPUT_VALUE", "OUTPUT_MEMORY", "OUTPUT_STRING", # not supported yet
-            "DEFAULT_STUB"
+            "RETURN"
     ]
     
     @staticmethod 
@@ -188,14 +188,14 @@ class DoubleDefinition(FunctionDefinition):
         """returns the default stub argument as one comma separated string"""
         for instruction in self.get_body():
             call = FunctionCall(instruction)
-            if (call.get_called() == "DEFAULT_STUB"):
+            if (call.get_called() == "RETURN"):
                 return ", ".join(call.get_actual_arguments())
                         
     def get_happy_return_value(self):
-        """returns the default happy value of the double, i.e. the first argument of the DEFAULT_STUB macro call"""
+        """returns the default happy value of the double, i.e. the first argument of the RETURN macro call"""
         for instruction in self.get_body():
             call = FunctionCall(instruction)
-            if (call.get_called() == "DEFAULT_STUB"):
+            if (call.get_called() == "RETURN"):
                 args = call.get_actual_arguments()
                 return args[0] if args else "NULL"
       

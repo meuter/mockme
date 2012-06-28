@@ -16,24 +16,24 @@ int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 {
 	INPUT_VALUE(output);
 	INPUT_MEMORY(bytes, size);
-	DEFAULT_STUB(0);
+	RETURN(0);
 }
 
 int xfprintf(FILE *stream, const char *format, ...)
 {
 	INPUT_VALUE(stream);
 	INPUT_STRING(format);
-	DEFAULT_STUB(1);
+	RETURN(1);
 }
 
 void print_prefix()
 {
-	DEFAULT_STUB();
+	RETURN();
 }
 
 const char *get_prefix()
 {
-	DEFAULT_STUB("> ");
+	RETURN("> ");
 }
 
 /**********************************************************************************************************************/

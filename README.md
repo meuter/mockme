@@ -23,7 +23,7 @@ int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 {
     INPUT_VALUE(output);
     INPUT_MEMORY(bytes, size);
-    DEFAULT_STUB(0);
+    RETURN(0);
 }
 </pre>
 
