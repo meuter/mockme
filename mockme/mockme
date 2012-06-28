@@ -229,11 +229,11 @@ class MockGenerator(object):
         for instruction in func_def.get_body():
             macro_call = FunctionCall(instruction)
             if macro_call.get_called() in [ "INPUT_VALUE", "INPUT_STRING" ]:
-                value = macro_call.get_actual_arguments()[0]
+                value = macro_call.get_actual_argument(0)
                 self.writeln("    check_expected({value});".format(**locals()))
             elif macro_call.get_called() == "INPUT_MEMORY":
-                ptr = macro_call.get_actual_arguments()[0]
-                size = macro_call.get_actual_arguments()[1]
+                ptr = macro_call.get_actual_argument(0)
+                size = macro_call.get_actual_argument(1)
                 self.writeln("    check_expected({size});".format(**locals()))
                 self.writeln("    check_expected({ptr});".format(**locals()))            
         self.writeln("    {return_or_not_return}({return_type})mock();".format(**locals()))
@@ -250,14 +250,14 @@ class MockGenerator(object):
         for instruction in func_def.get_body():
             macro_call = FunctionCall(instruction)
             if macro_call.get_called() == "INPUT_VALUE":
-                value = macro_call.get_actual_arguments()[0]
+                value = macro_call.get_actual_argument(0)
                 self.writeln("    expect_value({function_name}, {value}, {value});".format(**locals()))
             elif macro_call.get_called() == "INPUT_STRING":
-                value = macro_call.get_actual_arguments()[0]
+                value = macro_call.get_actual_argument(0)
                 self.writeln("    expect_string({function_name}, {value}, {value});".format(**locals()))
             elif macro_call.get_called() == "INPUT_MEMORY":
-                ptr = macro_call.get_actual_arguments()[0]
-                size = macro_call.get_actual_arguments()[1]
+                ptr = macro_call.get_actual_argument(0)
+                size = macro_call.get_actual_argument(1)
                 self.writeln("    expect_value({function_name}, {size}, {size});".format(**locals()))
                 self.writeln("    expect_memory({function_name}, {ptr}, {ptr}, {size});".format(**locals()))
         self.writeln("    will_return({function_name}, {happy_value});".format(**locals()))                
@@ -277,11 +277,11 @@ class MockGenerator(object):
         for instruction in func_def.get_body():
             call = FunctionCall(instruction)
             if call.get_called() in [ "INPUT_VALUE", "INPUT_STRING" ]:
-                value = call.get_actual_arguments()[0]
+                value = call.get_actual_argument(0)
                 self.writeln("    expect_any({function_name}, {value});".format(**locals()))
             elif call.get_called() == "INPUT_MEMORY":
-                ptr = call.get_actual_arguments()[0]
-                size = call.get_actual_arguments()[1]
+                ptr = call.get_actual_argument(0)
+                size = call.get_actual_argument(1)
                 self.writeln("    expect_any({function_name}, {size});".format(**locals()))
                 self.writeln("    expect_any({function_name}, {ptr});".format(**locals()))
         self.writeln("    will_return({function_name}, {return_value});".format(**locals()))
