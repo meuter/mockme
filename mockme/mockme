@@ -9,148 +9,184 @@ from pycparser import parse_file, c_ast, c_generator
 ########################################################################################################################
 
 class CModule(object):
+    """represents a C module that can be parsed"""
 
-    def __init__(self, filename, cpp_args=None):
+    @staticmethod
+    def parse(filename, cpp_args=None):
+        module = CModule(filename)
+        module.do_parse(cpp_args)
+        return module
+
+    def __init__(self, filename):
         self.filename = filename
-        self.cpp_args = cpp_args
         self.content  = None
         self.ast      = None
         
-    def parse(self):
+    def do_parse(self, cpp_args=None):
+        """pre-processes and then parses the module"""
         self.content = open(self.filename, "r").read()            
-        self.ast = parse_file(self.filename, use_cpp=True, cpp_args=self.cpp_args) 
+        self.ast = parse_file(self.filename, use_cpp=True, cpp_args=cpp_args) 
     
     def get_name(self):
+        """returns the name of the module, i.e. the file name without extension"""
         _, module = os.path.split(self.filename)
         if (module.endswith(".c")): module = module.replace(".c","")
         if (module.endswith(".C")): module = module.replace(".C","")
         return module;
     
     def get_filename(self):
+        """returns the absolute filename of the module""" 
         return os.path.abspath(self.filename)
+    
+    def get_lines(self):
+        """returns a list containing the lines of the original module (before preprocessing)"""
+        return self.content.splitlines()
+    
+    def get_function_definitions(self):
+        """returns the list of function definitions as a list of FunctionDefinition"""
+        result = []
         
+        class Visitor(c_ast.NodeVisitor):
+            def visit_FuncDef(self, node):
+                result.append(FunctionDefinition(node))
+                
+        Visitor().visit(self.ast)
+                    
+        return result
+    
 ########################################################################################################################
 
-class FunctionArgument(object):
+class FunctionCall(object):
+    """represents a function call instructions"""
     
-    def __init__(self, name, declaration):
-        self.name = name
-        self.declaration = declaration
-    
-    def get_name(self):
-        return self.name
-    
-    def get_declaration(self):
-        return self.declaration
-
-########################################################################################################################
-
-class DoubleDefinitionMacro(object):
-    
-    def __init__(self, node):        
-        self.node = node
-
-    def get_macro(self):
+    def __init__(self, node):
+        self.node = node;
+        
+    def get_called(self):
+        """returns the function called as a string"""
         return self.node.name.name
     
-    def get_arguments(self):
+    def get_actual_arguments(self):
+        """returns the list of actual arguments as a list of string"""
         expr_list = dict(self.node.children()).get("args", None)
         if expr_list:
             generator = c_generator.CGenerator()
             return [ generator.visit(expr) for _, expr in expr_list.children() ]
         else:
             return []
-        
-
-class DoubleDefinition:
-    
-    def __init__(self, node):
-        self.node = node
 
 ########################################################################################################################
-
+       
 class FunctionDefinition(object):
+    """represents a function definition inside a C module"""
     
-    def __init__(self, node):
-        self.node = node
+    def __init__(self, func_def_node):
+        self.node = func_def_node
             
     def get_name(self):
+        """returns the name of the function being defined"""
         return self.node.decl.name
 
     def get_return_type(self):
+        """returns the return type of the function as a string"""
         generator = c_generator.CGenerator()
         type_node = dict(dict(self.node.decl.children())['type'].children())['type']
         return_type_and_function_name = generator._generate_type(type_node)
         return return_type_and_function_name[:-len(self.get_name())].strip()
          
-    def get_default_stub_arguments(self):
-        for _, instruction in self.get_body().children():
-            macro_call = DoubleDefinitionMacro(instruction)
-            if (macro_call.get_macro() == "DEFAULT_STUB"):
-                return ", ".join(macro_call.get_arguments())
-                        
-    def get_happy_return_value(self):
-        for _, instruction in self.get_body().children():
-            macro_call = DoubleDefinitionMacro(instruction)
-            if (macro_call.get_macro() == "DEFAULT_STUB"):
-                args = macro_call.get_arguments()
-                if args: 
-                    return args[0]
-                else:
-                    return "NULL"
-         
-    def get_arguments(self):
-        generator = c_generator.CGenerator()
+    def get_formal_arguments(self):   
+        """returns the list of formal arguments of the function as a list of FunctionFormalArgument"""     
         args = dict(self.node.decl.type.children()).get('args', None)
         if not args: return []
     
         result = []
-        for _, arg in args.children():   
-            type_declaration = dict(arg.children()).get('type', None)
-            if (type_declaration):
-                declaration = generator._generate_type(dict(arg.children())['type'])
-                if arg.name: result.append(FunctionArgument(arg.name, declaration))
+        for _, arg_declaration in args.children():
+            if 'type' in dict(arg_declaration.children()):
+                result.append(FunctionFormalArgument(arg_declaration))
         return result                  
-            
+
     def get_arguments_declaration(self):
-        return ", ".join(arg.get_declaration() for arg in self.get_arguments())
-                
-    def get_file(self):
-        return os.path.abspath(self.node.coord.file)
-    
+        """return the formal arguments declaration as one string"""
+        return ", ".join(arg.get_declaration() for arg in self.get_formal_arguments())
+
     def get_body(self):
-        return dict(self.node.children()).get("body", None)
+        """returns the body of the function as a list of AST nodes"""
+        body_node = dict(self.node.children()).get("body", None)
+        if not body_node: return []
+        return [ instruction for _, instruction in body_node.children() ]
+    
+    
+    def get_declaration_line(self):
+        """returns the list at which the function declaration is done withing its module"""
+        return self.node.decl.coord.line-1
+    
+    def get_body_line_range(self):
+        """returns a range of line number in the module of the body of the function""" 
+        body = self.get_body()        
+        return range(body[0].coord.line-1, body[-1].coord.line)
         
-    def is_double(self):
-        body = self.get_body()
-        
-        DOUBLE_MACROS = [
+########################################################################################################################
+
+class FunctionFormalArgument(object):
+    """represents a formal argument in the a function definition"""
+    
+    def __init__(self, decl_node):
+        self.node = decl_node
+    
+    def get_name(self):
+        """returns the name of the argument as a string"""
+        return self.node.name
+    
+    def get_declaration(self):
+        """returns the declaration of the argument as a string"""
+        generator = c_generator.CGenerator()
+        return generator._generate_type(dict(self.node.children())['type'])
+
+
+########################################################################################################################
+
+class DoubleDefinition(FunctionDefinition):
+    """
+    represents a double definition i.e. a classical function definition whose body is only composed of 
+    macro call to INPUT_VALUE, INPUT_STRING, INPUT_MEMORY, OUTPUT_VALUE, OUTPUT_STRING, OUTPUT_MEMORY,
+    or DEFAULT_STUB
+    """
+    
+    DOUBLE_MACROS = [
             "INPUT_VALUE", "INPUT_MEMORY", "INPUT_STRING",
 #            "OUTPUT_VALUE", "OUTPUT_MEMORY", "OUTPUT_STRING", # not supported yet
             "DEFAULT_STUB"
-        ]
-        
-        if not body.children(): 
-            return False
-        
-        for _, instruction in body.children():            
+    ]
+    
+    @staticmethod 
+    def is_double(func_def):
+        """checks if a function definition only contains macro calls to the macro detailed above"""
+        for instruction in func_def.get_body():            
             if not isinstance(instruction, c_ast.FuncCall):
                 return False
             called = instruction.name.name
-            if called not in DOUBLE_MACROS:
-                return False
-                    
+            if called not in DoubleDefinition.DOUBLE_MACROS:
+                return False                    
         return True
     
-    def get_first_line(self):
-        return self.node.decl.coord.line-1
-    
-    def get_body_range(self):
-        body = self.get_body()        
-        _, last_instruction = body.children()[-1]
-        _, first_instruction = body.children()[0]
-        return range(first_instruction.coord.line-1, last_instruction.coord.line)
-                
+    def __init__(self, func_def):
+        self.node = func_def.node
+        
+    def get_default_stub_arguments(self):
+        """returns the default stub argument as one comma separated string"""
+        for instruction in self.get_body():
+            call = FunctionCall(instruction)
+            if (call.get_called() == "DEFAULT_STUB"):
+                return ", ".join(call.get_actual_arguments())
+                        
+    def get_happy_return_value(self):
+        """returns the default happy value of the double, i.e. the first argument of the DEFAULT_STUB macro call"""
+        for instruction in self.get_body():
+            call = FunctionCall(instruction)
+            if (call.get_called() == "DEFAULT_STUB"):
+                args = call.get_actual_arguments()
+                return args[0] if args else "NULL"
+      
 ########################################################################################################################
 
 class MockGenerator(object):
@@ -160,64 +196,56 @@ class MockGenerator(object):
         self.output = output        
 
     def writeln(self, text=""):
+        """writes some text followed by a new line to the output"""
         self.output.write(text + "\n")
         
-    def write(self, text):
-        self.output.write(text)
-
     def collect_double(self):
-        result = []
-                
-        class Visitor(c_ast.NodeVisitor):
-    
-            def visit_FuncDef(self, node):
-                func_def = FunctionDefinition(node)
-                if func_def.is_double():
-                     result.append(func_def)
-                                
-        Visitor().visit(self.module.ast)
-        return result
+        """collects all the double definition of the input module"""
+        func_defs = self.module.get_function_definitions()
+        return [ DoubleDefinition(func_def) for func_def in func_defs if DoubleDefinition.is_double(func_def) ] 
 
     def generate_double_body(self, func_def):
+        """generates the code that goes inside the double function, hence replacing the double macro calls"""
         function_name        = func_def.get_name()
         return_type          = func_def.get_return_type()
-        arguments            = func_def.get_arguments()
+        arguments            = func_def.get_formal_arguments()
         default_stub_args    = func_def.get_default_stub_arguments()   
         return_or_not_return = "return " if return_type != "void" else ""
         
         self.writeln("    if (auto_stub())")
         self.writeln("        STUB_{function_name}({default_stub_args});".format(**locals())) 
-        for _, instruction in func_def.get_body().children():
-            macro_call = DoubleDefinitionMacro(instruction)
-            if macro_call.get_macro() in [ "INPUT_VALUE", "INPUT_STRING" ]:
-                value = macro_call.get_arguments()[0]
+        for instruction in func_def.get_body():
+            macro_call = FunctionCall(instruction)
+            if macro_call.get_called() in [ "INPUT_VALUE", "INPUT_STRING" ]:
+                value = macro_call.get_actual_arguments()[0]
                 self.writeln("    check_expected({value});".format(**locals()))
-            elif macro_call.get_macro() == "INPUT_MEMORY":
-                ptr = macro_call.get_arguments()[0]
-                size = macro_call.get_arguments()[1]
+            elif macro_call.get_called() == "INPUT_MEMORY":
+                ptr = macro_call.get_actual_arguments()[0]
+                size = macro_call.get_actual_arguments()[1]
                 self.writeln("    check_expected({size});".format(**locals()))
                 self.writeln("    check_expected({ptr});".format(**locals()))            
         self.writeln("    {return_or_not_return}({return_type})mock();".format(**locals()))
     
     
     def generate_mock(self, func_def):
+        """generates the MOCK_<blabla> function"""
         function_name    = func_def.get_name()
         formal_arguments = func_def.get_arguments_declaration()
         happy_value      = func_def.get_happy_return_value()
         
         self.writeln("void MOCK_{function_name}({formal_arguments})".format(**locals()))
         self.writeln("{")
-        for _, instruction in func_def.get_body().children():
-            macro_call = DoubleDefinitionMacro(instruction)
-            if macro_call.get_macro() == "INPUT_VALUE":
-                value = macro_call.get_arguments()[0]
+        for instruction in func_def.get_body():
+            macro_call = FunctionCall(instruction)
+            if macro_call.get_called() == "INPUT_VALUE":
+                value = macro_call.get_actual_arguments()[0]
                 self.writeln("    expect_value({function_name}, {value}, {value});".format(**locals()))
-            elif macro_call.get_macro() == "INPUT_STRING":
-                value = macro_call.get_arguments()[0]
+            elif macro_call.get_called() == "INPUT_STRING":
+                value = macro_call.get_actual_arguments()[0]
                 self.writeln("    expect_string({function_name}, {value}, {value});".format(**locals()))
-            elif macro_call.get_macro() == "INPUT_MEMORY":
-                ptr = macro_call.get_arguments()[0]
-                size = macro_call.get_arguments()[1]
+            elif macro_call.get_called() == "INPUT_MEMORY":
+                ptr = macro_call.get_actual_arguments()[0]
+                size = macro_call.get_actual_arguments()[1]
                 self.writeln("    expect_value({function_name}, {size}, {size});".format(**locals()))
                 self.writeln("    expect_memory({function_name}, {ptr}, {ptr}, {size});".format(**locals()))
         self.writeln("    will_return({function_name}, {happy_value});".format(**locals()))                
@@ -225,6 +253,7 @@ class MockGenerator(object):
         self.writeln()    
         
     def generate_stub(self, func_def):
+        """generates the STUB_<blabla> function"""
         return_type      = func_def.get_return_type()
         function_name    = func_def.get_name()
         formal_arguments = return_type + " return_value" if return_type != "void" else ""
@@ -233,42 +262,49 @@ class MockGenerator(object):
         self.writeln("")
         self.writeln("void STUB_{function_name}({formal_arguments})".format(**locals()))
         self.writeln("{")
-        for _, instruction in func_def.get_body().children():
-            macro_call = DoubleDefinitionMacro(instruction)
-            if macro_call.get_macro() in [ "INPUT_VALUE", "INPUT_STRING" ]:
-                value = macro_call.get_arguments()[0]
+        for instruction in func_def.get_body():
+            macro_call = FunctionCall(instruction)
+            if macro_call.get_called() in [ "INPUT_VALUE", "INPUT_STRING" ]:
+                value = macro_call.get_actual_arguments()[0]
                 self.writeln("    expect_any({function_name}, {value});".format(**locals()))
-            elif macro_call.get_macro() == "INPUT_MEMORY":
-                ptr = macro_call.get_arguments()[0]
-                size = macro_call.get_arguments()[1]
+            elif macro_call.get_called() == "INPUT_MEMORY":
+                ptr = macro_call.get_actual_arguments()[0]
+                size = macro_call.get_actual_arguments()[1]
                 self.writeln("    expect_any({function_name}, {size});".format(**locals()))
                 self.writeln("    expect_any({function_name}, {ptr});".format(**locals()))
         self.writeln("    will_return({function_name}, {return_value});".format(**locals()))
         self.writeln("}")
         self.writeln()        
 
-    def generate(self):                
+    def generate(self):
+        """
+        This is where all the magic happens. The un-pre-processed module is transformed as follows:
+            - before any double definition foo(), two additional function MOCK_foo() and STUB_foo() are added
+              with appropriate cmockery code (expect_any, expect_value, expect_stirng, expect_memory, ...)
+            - the body of the double function is replaced with correct cmockery code (check_expected(), mock(), ...)
+            - all other lines are copied through untouched
+        """
         double_definitions = self.collect_double()
         
         line_map = {}        
         for double in double_definitions:
-            for i in double.get_body_range():
+            for i in double.get_body_line_range():
                 line_map[i] = double
-            line_map[double.get_first_line()] = double
+            line_map[double.get_declaration_line()] = double
 
-        lines  = self.module.content.splitlines()
+        lines  = self.module.get_lines()
         lineno = 0
         while lineno < len(lines):
             double = line_map.get(lineno, None)
             if double:            
-                if lineno == double.get_first_line():
+                if lineno == double.get_declaration_line():
                     self.generate_stub(double)
                     self.generate_mock(double)
                     self.writeln(lines[lineno])
                     lineno +=1                    
-                elif lineno in double.get_body_range():
+                elif lineno in double.get_body_line_range():
                     self.generate_double_body(double)
-                    lineno = double.get_body_range()[-1]+1
+                    lineno = double.get_body_line_range()[-1]+1
             else: 
                 self.writeln(lines[lineno])
                 lineno += 1
@@ -276,6 +312,7 @@ class MockGenerator(object):
 ########################################################################################################################
     
 def parse_args():
+    """parses the command line argument, see 'mockme --help' for details"""
     parser = optparse.OptionParser(
         usage="%prog [options] <FILE>", 
         description="Automatically generates and add cmockery mocks/stubs/double functions to a C module"
@@ -308,12 +345,9 @@ def parse_args():
     
     return args
     
-         
 ########################################################################################################################
     
 if __name__=="__main__":
     args = parse_args()
-    module = CModule(args.input, cpp_args=args.cpp_args)
-    module.parse()
-    MockGenerator(module, args.output).generate()
+    MockGenerator(CModule.parse(args.input, args.cpp_args), args.output).generate()
 
