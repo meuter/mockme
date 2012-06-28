@@ -1,7 +1,23 @@
 #include <mockme/under_test.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "demo.h"
+
+
+DEFINE_FUNCTION(int, get_string_length,
+	const char *string,
+	size_t *length
+)
+{
+	if (length == NULL || string == NULL)
+		return -1;
+
+	(*length) = strlen(string);
+
+	return 0;
+}
+
 
 DEFINE_FUNCTION(const char *, get_prefix)
 {

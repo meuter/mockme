@@ -38,6 +38,8 @@
 // <MOCKME>
 // Checks if a function has as been mocked
 #define has_mock()   _has_mock(__func__)
+
+// Determines if an autostub can be used (no mock has been set and auto_stubs are enabled
 #define auto_stub()  _auto_stub(__func__)
 // </MOCKME>
 

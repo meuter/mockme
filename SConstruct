@@ -45,7 +45,7 @@ base["OBJPREFIX"]    = "."
 ########################################################################################################################
 
 root = base.Clone()
-root.MergeFlags("-Wall -Wextra -O3 -m32")
+root.MergeFlags("-Wall -Wextra -O3")
 root.MergeFlags("-ggdb -O0")
 Export("root")
 

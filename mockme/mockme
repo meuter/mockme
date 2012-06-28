@@ -74,6 +74,11 @@ class FunctionCall(object):
             return [ generator.visit(expr) for _, expr in expr_list.children() ]
         else:
             return []
+        
+    def get_actual_argument(self, n):
+        """returns the n^th actual argument of a function call"""
+        return self.get_actual_arguments()[n]
+        
 
 ########################################################################################################################
        
@@ -104,6 +109,13 @@ class FunctionDefinition(object):
             if 'type' in dict(arg_declaration.children()):
                 result.append(FunctionFormalArgument(arg_declaration))
         return result                  
+
+    def get_formal_argument(self, name):
+        """returns the argument corresponding to provided argument name as a FunctionFormalArgument"""
+        for arg in self.get_formal_arguments():
+            if arg.get_name() == name: 
+                return arg
+        return None
 
     def get_arguments_declaration(self):
         """return the formal arguments declaration as one string"""
@@ -228,7 +240,7 @@ class MockGenerator(object):
     
     
     def generate_mock(self, func_def):
-        """generates the MOCK_<blabla> function"""
+        """generates the MOCK_foo function"""
         function_name    = func_def.get_name()
         formal_arguments = func_def.get_arguments_declaration()
         happy_value      = func_def.get_happy_return_value()
@@ -253,7 +265,7 @@ class MockGenerator(object):
         self.writeln()    
         
     def generate_stub(self, func_def):
-        """generates the STUB_<blabla> function"""
+        """generates the STUB_foo function"""
         return_type      = func_def.get_return_type()
         function_name    = func_def.get_name()
         formal_arguments = return_type + " return_value" if return_type != "void" else ""
@@ -263,13 +275,13 @@ class MockGenerator(object):
         self.writeln("void STUB_{function_name}({formal_arguments})".format(**locals()))
         self.writeln("{")
         for instruction in func_def.get_body():
-            macro_call = FunctionCall(instruction)
-            if macro_call.get_called() in [ "INPUT_VALUE", "INPUT_STRING" ]:
-                value = macro_call.get_actual_arguments()[0]
+            call = FunctionCall(instruction)
+            if call.get_called() in [ "INPUT_VALUE", "INPUT_STRING" ]:
+                value = call.get_actual_arguments()[0]
                 self.writeln("    expect_any({function_name}, {value});".format(**locals()))
-            elif macro_call.get_called() == "INPUT_MEMORY":
-                ptr = macro_call.get_actual_arguments()[0]
-                size = macro_call.get_actual_arguments()[1]
+            elif call.get_called() == "INPUT_MEMORY":
+                ptr = call.get_actual_arguments()[0]
+                size = call.get_actual_arguments()[1]
                 self.writeln("    expect_any({function_name}, {size});".format(**locals()))
                 self.writeln("    expect_any({function_name}, {ptr});".format(**locals()))
         self.writeln("    will_return({function_name}, {return_value});".format(**locals()))
@@ -314,16 +326,16 @@ class MockGenerator(object):
 def parse_args():
     """parses the command line argument, see 'mockme --help' for details"""
     parser = optparse.OptionParser(
-        usage="%prog [options] <FILE>", 
+        usage="%prog [options] <INFILE>", 
         description="Automatically generates and add cmockery mocks/stubs/double functions to a C module"
     )
 
     parser.add_option("-I", action="append", default=[], dest="includes", metavar="<DIR>", 
-                      help="Add the directory <DIR> to the list of directories to be searched for header files.")
+                      help="add the directory <DIR> to the list of directories to be searched for header files.")
     parser.add_option("-D", action="append", default=[], dest="defines", metavar="<NAME>", 
-                      help="Predefine <NAME> as a macro, with definition 1")
-    parser.add_option("-o", action="store", default=None, dest="output", metavar="<FILE>",
-                      help="Sets <FILE> as output. Default is standard output")
+                      help="predefine <NAME> as a macro, with definition 1")
+    parser.add_option("-o", action="store", default=None, dest="output", metavar="<OUTFILE>",
+                      help="sets <OUTFILE> as output; if no file is provided, the standard output will be used")
     args, remaining = parser.parse_args()
         
     if len(remaining) != 1: 
