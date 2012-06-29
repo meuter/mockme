@@ -13,8 +13,9 @@ needs.
 
 *Contributors*: Cédric Meuter, Nicolas Maquet with guidance by Erik Talboom
 
-CLI
----
+mockme
+------
+
 At the heart of this, stands the mockme script. It acts as a C preprocessor that
 auto-magically generates proper mocking and stubbing function for your double (*).
 It has a simple command line interface:
@@ -42,8 +43,8 @@ Options:
 Example
 -------
 Imagine you are testing a function that prints some bytes as ASCII hex. You already have
-such a function, but your want to mock/stub it out for your test. You can simply write 
-this:
+such a function, but your want to mock/stub it out for your test. You can simply define 
+it in your test as follows:
 
 <pre>
 int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
