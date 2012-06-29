@@ -44,7 +44,7 @@ Example
 -------
 Imagine you've written a function that prints some bytes as ASCII hex:
 
-<pre>
+
 int my_function()
 {
 	const uint8_t bytes[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
@@ -54,7 +54,7 @@ int my_function()
 
 	return 0;
 }
-</pre>
+
 
 Now you want to unit test the hello out of it (ok maybe you want to write 
 the test before writing the actual function, but that's another topic).
