@@ -225,11 +225,8 @@ class DoubleDefinition(FunctionDefinition):
         """tags each formal argument with the macro call within the double definition body linked to that argument"""
         calls = self.get_macro_calls("INPUT_") + self.get_macro_calls("OUTPUT_")        
         for call in calls:
-            arg_name = call.get_actual_argument(0)
-            self.get_formal_argument(arg_name).tag(call)
-            if (call.get_called().endswith("MEMORY")):
-                arg_name = call.get_actual_argument(1)
-                self.get_formal_argument(arg_name).tag(call)
+            formal_arg = self.get_formal_argument(call.get_actual_argument(0))
+            if formal_arg: formal_arg.tag(call)            
                         
     def get_happy_return_value(self):
         """returns the default happy value of the double, i.e. the first argument of the RETURN macro call"""
@@ -301,7 +298,6 @@ class MockGenerator(object):
             elif call.get_called() == "INPUT_MEMORY":
                 ptr = call.get_actual_argument(0)
                 size = call.get_actual_argument(1)
-                self.writeln("    check_expected({size});".format(**locals()))
                 self.writeln("    check_expected({ptr});".format(**locals()))
         for call in double_def.get_macro_calls("OUTPUT_"):
             if call.get_called() == "OUTPUT_VALUE":
@@ -332,7 +328,6 @@ class MockGenerator(object):
             elif call.get_called() == "INPUT_MEMORY":
                 ptr = call.get_actual_argument(0)
                 size = call.get_actual_argument(1)
-                self.writeln("    expect_value({function_name}, {size}, {size});".format(**locals()))
                 self.writeln("    expect_memory({function_name}, {ptr}, {ptr}, {size});".format(**locals()))
         for call in double_def.get_macro_calls("OUTPUT_"):
             if call.get_called() == "OUTPUT_VALUE":
@@ -362,7 +357,6 @@ class MockGenerator(object):
             elif call.get_called() == "INPUT_MEMORY":
                 ptr = call.get_actual_argument(0)
                 size = call.get_actual_argument(1)
-                self.writeln("    expect_any({function_name}, {size});".format(**locals()))
                 self.writeln("    expect_any({function_name}, {ptr});".format(**locals()))
         for call in double_def.get_macro_calls("OUTPUT_"):
             if call.get_called() == "OUTPUT_VALUE":

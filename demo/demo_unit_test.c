@@ -15,6 +15,7 @@
 int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 {
 	INPUT_VALUE(output);
+	INPUT_VALUE(size);
 	INPUT_MEMORY(bytes, size);
 	RETURN(0);
 }
@@ -46,6 +47,13 @@ int get_me_the_answer_of_everything_and_tell_me_is_the_world_is_ending(int *answ
 {
 	OUTPUT_VALUE(answer, 42);
 	RETURN(0);
+}
+
+
+void fixed_size_buffer_as_input(uint8_t *aes256_key)
+{
+	INPUT_MEMORY(aes256_key, 256/8);
+	RETURN();
 }
 
 
