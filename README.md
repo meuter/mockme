@@ -22,6 +22,7 @@ The mockme script acts as a C preprocessor that replaces this kind of stuff:
 int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 {
     INPUT_VALUE(output);
+    INPUT_VALUE(size);
     INPUT_MEMORY(bytes, size);
     RETURN(0);
 }
