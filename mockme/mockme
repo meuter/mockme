@@ -16,13 +16,13 @@ class CModule(object):
         """parses file and return a CModule"""
         content = open(filename, "r").read()
         node    = parse_file(filename, use_cpp=True, cpp_args=cpp_args)
-        return CModule(filename, content, node)
+        return CModule(node, filename, content)
 
-    def __init__(self, filename, content, node):
+    def __init__(self, node, filename, content):
         """builds a new CModule object"""
+        self.node     = node
         self.filename = filename
         self.content  = content
-        self.node     = node
             
     def get_name(self):
         """returns the name of the module, i.e. the file name without extension"""
