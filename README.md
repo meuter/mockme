@@ -44,7 +44,7 @@ Example
 -------
 Imagine you are testing a function that prints some bytes as ASCII hex. You already have
 such a function, but your want to mock/stub it out for your test. You can simply define 
-it in your test as follows:
+it in your test module as follows:
 
 <pre>
 int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
