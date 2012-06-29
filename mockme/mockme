@@ -38,6 +38,7 @@ class CModule(object):
     def get_lines(self):
         """returns a list containing the lines of the original module (before preprocessing)"""
         return self.content.splitlines()
+            
     
     def get_function_definitions(self):
         """returns the list of function definitions as a list of FunctionDefinition"""
@@ -50,6 +51,20 @@ class CModule(object):
         Visitor().visit(self.node)
                     
         return result
+    
+    def get_double_definitions(self):
+        """returns the list of double definitions as a list of DoubleDefinition"""
+        result = []
+        
+        class Visitor(c_ast.NodeVisitor):
+            def visit_FuncDef(self, node):
+                double_def = DoubleDefinition.parse(node)
+                if (double_def): result.append(double_def)
+                
+        Visitor().visit(self.node)
+                    
+        return result
+        
     
 ########################################################################################################################
     
@@ -225,23 +240,24 @@ class DoubleDefinition(FunctionDefinition):
     or RETURN
     """
     
-    DOUBLE_MACROS = [
+    DOUBLE_DEFINITION_LANGUAGE = [
             "INPUT_VALUE", "INPUT_MEMORY", "INPUT_STRING",
             "OUTPUT_VALUE", # "OUTPUT_MEMORY", "OUTPUT_STRING", not yet supported
             "RETURN"
     ]
     
-    @staticmethod 
-    def is_double(func_def):
-        """checks if a function definition only contains macro calls to the macro detailed above"""
+    
+    @staticmethod
+    def parse(node):
+        func_def = FunctionDefinition.parse(node)
         for instruction in func_def.get_body():            
             if not isinstance(instruction, c_ast.FuncCall):
-                return False
+                return None
             called = instruction.name.name
-            if called not in DoubleDefinition.DOUBLE_MACROS:
-                return False                    
-        return True
-    
+            if called not in DoubleDefinition.DOUBLE_DEFINITION_LANGUAGE:
+                return None                    
+        return DoubleDefinition(func_def)
+            
     def __init__(self, func_def):
         node  = func_def.node
         rtype = FunctionDefinition.parse_rtype(node)        
@@ -320,11 +336,6 @@ class MockGenerator(object):
     def writeln(self, text=""):
         """writes some text followed by a new line to the output"""
         self.output.write(text + "\n")
-        
-    def collect_double(self):
-        """collects all the double definition of the input module"""
-        func_defs = self.module.get_function_definitions()
-        return [ DoubleDefinition(func_def) for func_def in func_defs if DoubleDefinition.is_double(func_def) ] 
 
     def generate_double_body(self, double_def):
         """generates the code that goes inside the double function, hence replacing the double macro calls"""
@@ -349,8 +360,6 @@ class MockGenerator(object):
                 type = double_def.get_formal_argument(name).get_dereferenced_type()
                 self.writeln("    check_expected({name});".format(**locals()))
                 self.writeln("    *({name}) = ({type})mock();".format(**locals()))
-                
-            
         self.writeln("    {return_or_not_return}({return_type})mock();".format(**locals()))
     
     
@@ -379,7 +388,6 @@ class MockGenerator(object):
                 default_value = call.get_arg(1)
                 self.writeln("    expect_not_value({function_name}, {name}, NULL);".format(**locals()))
                 self.writeln("    will_return({function_name}, {default_value});".format(**locals()))
-
         self.writeln("    will_return({function_name}, {happy_value});".format(**locals()))                
         self.writeln("}")    
         self.writeln()    
@@ -406,9 +414,7 @@ class MockGenerator(object):
             if call.get_called() == "OUTPUT_VALUE":
                 name = call.get_arg(0)
                 self.writeln("    expect_not_value({function_name}, {name}, NULL);".format(**locals()))
-                self.writeln("    will_return({function_name}, {name});".format(**locals()))
-                                
-
+                self.writeln("    will_return({function_name}, {name});".format(**locals()))                            
         self.writeln("    will_return({function_name}, {return_value});".format(**locals()))
         self.writeln("}")
         self.writeln()        
@@ -421,7 +427,7 @@ class MockGenerator(object):
             - the body of the double function is replaced with correct cmockery code (check_expected(), mock(), ...)
             - all other lines are copied through untouched
         """
-        double_definitions = self.collect_double()
+        double_definitions = self.module.get_double_definitions()
         
         line_map = {}        
         for double in double_definitions:
