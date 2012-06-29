@@ -131,7 +131,7 @@ For a more detailed example, you can have a look at
 Extra
 -----
 
-As an extra free of charge, for those of you who use scons, you can check the
+As an added bonus, for those of you who use scons, you can check the
 <a href="https://github.com/meuter/mockme/blob/master/SConstruct">SConstruct</a> to see how
 mockme can be nicely integrated in a build script.
 
