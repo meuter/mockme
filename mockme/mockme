@@ -13,7 +13,7 @@ class CModule(object):
 
     @staticmethod
     def parse(filename, cpp_args=None):
-        """parses and return a c module"""
+        """parses file and return a CModule"""
         content = open(filename, "r").read()
         node    = parse_file(filename, use_cpp=True, cpp_args=cpp_args)
         return CModule(filename, content, node)
@@ -58,6 +58,7 @@ class FunctionDefinition(object):
     
     @staticmethod
     def parse(node):
+        """parses a FuncDef node and returns a FunctionDefinition"""
         rtype = FunctionDefinition.parse_rtype(node)        
         args  = FunctionDefinition.parse_args(node)
         body  = FunctionDefinition.parse_body(node)
@@ -72,7 +73,7 @@ class FunctionDefinition(object):
         result = []
         for _, arg_declaration in args.children():
             if 'type' in dict(arg_declaration.children()):
-                result.append(FunctionFormalArgument(arg_declaration))
+                result.append(FormalArgument.parse(arg_declaration))
         return result
     
     @staticmethod
@@ -90,7 +91,6 @@ class FunctionDefinition(object):
         return_type_and_function_name = generator._generate_type(type_node)
         return return_type_and_function_name[:-len(node.decl.name)].strip()
 
-
     def __init__(self, node, rtype, args, body):
         """builds a new FunctionDefinition object"""
         self.node     = node
@@ -98,8 +98,7 @@ class FunctionDefinition(object):
         self.args     = args
         self.body     = body
         self.args_map = dict( (arg.get_name(), arg) for arg in self.args)
-            
-            
+             
     def get_name(self):
         """returns the name of the function being defined"""
         return self.node.decl.name
@@ -109,11 +108,11 @@ class FunctionDefinition(object):
         return self.rtype
     
     def get_formal_arguments(self):   
-        """returns the list of formal arguments of the function as a list of FunctionFormalArgument"""     
+        """returns the list of formal arguments of the function as a list of FormalArgument"""     
         return self.args
 
     def get_formal_argument(self, name):
-        """returns the argument corresponding to provided argument name as a FunctionFormalArgument"""
+        """returns the argument corresponding to provided argument name as a FormalArgument"""
         return self.args_map.get(name, None)
 
     def get_body(self):
@@ -133,20 +132,27 @@ class FunctionDefinition(object):
 class FunctionCall(object):
     """represents a function call instructions"""
     
-    def __init__(self, node):
-        """Builds a new FunctionCall object"""
-        self.node = node;
-        self.args = self.parse_args()
-        
-    def parse_args(self):
+    @staticmethod
+    def parse(node):
+        """parses a FuncCall node and returns a FunctionCall"""
+        args = FunctionCall.parse_args(node)
+        return FunctionCall(node, args)
+    
+    @staticmethod
+    def parse_args(node):
         """parses the actual argument of the function call  and returns it as a list of string"""    
-        expr_list = dict(self.node.children()).get("args", None)
+        expr_list = dict(node.children()).get("args", None)
         if expr_list:
             generator = c_generator.CGenerator()
             return [ generator.visit(expr) for _, expr in expr_list.children() ]
         else:
             return []
 
+    def __init__(self, node, args):
+        """builds a new FunctionCall object"""
+        self.node = node;
+        self.args = args
+        
     def get_called(self):
         """returns the function called as a string"""
         return self.node.name.name
@@ -162,47 +168,53 @@ class FunctionCall(object):
 
 ########################################################################################################################
 
-class FunctionFormalArgument(object):
+class FormalArgument(object):
     """represents a formal argument in the a function definition"""
     
-    def __init__(self, decl_node):
-        self.node = decl_node
-        self.tag_value = None
+    @staticmethod
+    def parse(node):
+        """parses a TypeDecl node (assumed to ba a formal argument) and returns a FormalArgument"""
+        return FormalArgument(node)
+
+    def __init__(self, node, tag=None):
+        """builds a new FormalArgument object"""
+        self.node        = node
+        self.tag         = tag
+    
+    def get_type_node(self):
+        """returns the type node of the argument"""
+        return dict(self.node.children())['type']
     
     def get_name(self):
         """returns the name of the argument as a string"""
         return self.node.name
     
-    def get_type(self):
-        """returns the type of the argument... well mostly does not work for [] types"""
-        return self.get_declaration().replace(self.get_name(),"")
-    
-    def get_dereferenced_type(self):
-        """returns the dereferenced type of the argument... well mostly does not work for [] types"""
-        return self.get_dereferenced_declaration().replace(self.get_name(),"")
-        
     def get_declaration(self):
         """returns the declaration of the argument as a string"""
         generator = c_generator.CGenerator()
-        return generator._generate_type(dict(self.node.children())['type'])
-    
+        return generator._generate_type(self.get_type_node())
+
+    def get_type(self):
+        """returns the type of the argument... well mostly does not work for [] types"""
+        return self.get_declaration().replace(self.get_name(),"")
+           
     def get_dereferenced_declaration(self):
         """return a declaration of the argument with one less pointer indirection, e.g. 'int *p' --> 'int p'"""
         generator = c_generator.CGenerator()
-        type_node = dict(self.node.children())['type']
-        return generator._generate_type(self._deref_type_node(type_node))
-          
-    def _deref_type_node(self, type_node):
-        """dereferences a type node, i.e. removes a PtrType at the root of the node"""
-        return dict(type_node.children())['type']
-            
-    def tag(self, value):
-        """allows to tag the argument"""
-        self.tag_value = value
+        deref_type_node = dict(self.get_type_node().children())['type']
+        return generator._generate_type(deref_type_node)
+
+    def get_dereferenced_type(self):
+        """returns the dereferenced type of the argument... well mostly does not work for [] types"""
+        return self.get_dereferenced_declaration().replace(self.get_name(),"")
+                  
+    def set_tag(self, tag):
+        """allows to set_tag the argument"""
+        self.tag = tag
         
     def get_tag(self):
         """allows to retrieve the tag"""
-        return self.tag_value 
+        return self.tag 
 
 ########################################################################################################################
 
@@ -242,7 +254,12 @@ class DoubleDefinition(FunctionDefinition):
         
     def get_macro_calls(self, macro_prefix):
         """returns the list of macro calls matching a given prefix as a list of FunctionCall"""
-        return [ FunctionCall(i) for i in self.get_body() if FunctionCall(i).get_called().startswith(macro_prefix) ]
+        result = []
+        for instruction in self.get_body():
+            call = FunctionCall.parse(instruction)
+            if call.get_called().startswith(macro_prefix):
+                result.append(call)
+        return result
 
     def retrieve_return_statement(self):
         """goes through the body of the double definition and looks for the RETURN() statement"""
@@ -253,7 +270,7 @@ class DoubleDefinition(FunctionDefinition):
         calls = self.get_macro_calls("INPUT_") + self.get_macro_calls("OUTPUT_")        
         for call in calls:
             formal_arg = self.get_formal_argument(call.get_arg(0))
-            if formal_arg: formal_arg.tag(call)            
+            if formal_arg: formal_arg.set_tag(call)            
                         
     def get_happy_return_value(self):
         """returns the default happy value of the double, i.e. the first argument of the RETURN macro call"""
