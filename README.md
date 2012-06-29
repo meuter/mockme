@@ -11,7 +11,7 @@ this framework is to avoid manually writing mocks and stubs for your unit tests
 *MockMe!* relies on <a href="http://code.google.com/p/pycparser/">PyCParser</a> for all its parsing
 needs.
 
-<b>Contributors</b>: Cédric Meuter, Nicolas Maquet
+<b>Contributors</b>: Cédric Meuter, Nicolas Maquet<br/>
 <b>Thanks</b> to Erik Talboom for his guidance
 
 mockme
