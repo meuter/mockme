@@ -4,14 +4,14 @@ MockMe!
 Introduction
 ------------
 
-MockMe! is a unit test framework for the C language based on top of (a patched)
+*MockMe!* is a unit test framework for the C language based on top of (a patched)
 version of <a href="http://code.google.com/p/cmockery/">cmockery</a>. The main idea behind
 this framework is to avoid manually writing mocks and stubs for your unit tests
 (you know what happens when you do that <a href="http://www.youtube.com/watch?v=T-Qn_-F2x1c">;-p</a>.
-MockMe! relies on <a href="http://code.google.com/p/pycparser/">PyCParser</a> for all its parsing
+*MockMe!* relies on <a href="http://code.google.com/p/pycparser/">PyCParser</a> for all its parsing
 needs.
 
-*Contributors*: Cédric Meuter, Nicolas Maquet with guidance by Erik Talboom
+<b>Contributors</b>: Cédric Meuter, Nicolas Maquet with guidance by Erik Talboom
 
 mockme
 ------
