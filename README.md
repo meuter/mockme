@@ -52,7 +52,7 @@ int my_function()
 {
 	const uint8_t bytes[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
 
-	if (print_as_ascii_hex(stdout, bytes, sizeof(bytes)) == -1)
+	if (print_as_ascii_hex(stdout, bytes, sizeof(bytes)) &lt; 0)
 		return -1;
 
 	return 0;
