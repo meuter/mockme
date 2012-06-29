@@ -138,7 +138,7 @@ class FunctionDefinition(object):
         """returns the list at which the function declaration is done withing its module"""
         return self.node.decl.coord.line-1
     
-    def get_body_line_range(self):
+    def get_body_lines(self):
         """returns a range of line number in the module of the body of the function""" 
         return range(self.body[0].coord.line-1, self.body[-1].coord.line)
     
@@ -415,7 +415,7 @@ class MockGenerator(object):
         """returns a map giving for each line number the DoubleDefinition occurring at this line if applicable"""  
         line_map = {}        
         for double_def in self.module.get_double_definitions():
-            for i in double_def.get_body_line_range():
+            for i in double_def.get_body_lines():
                 line_map[i] = double_def
             line_map[double_def.get_declaration_line()] = double_def
         return line_map
@@ -440,9 +440,9 @@ class MockGenerator(object):
                 self.generate_stub(double)
                 self.generate_mock(double)
                 self.writeln(lines[lineno])
-            elif lineno in double.get_body_line_range():
+            elif lineno in double.get_body_lines():
                 self.generate_double_body(double)
-                lineno = double.get_body_line_range()[-1]
+                lineno = double.get_body_lines()[-1]
             lineno += 1
            
 ########################################################################################################################
