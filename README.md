@@ -42,9 +42,25 @@ Options:
 
 Example
 -------
-Imagine you are testing a function that prints some bytes as ASCII hex. You already have
-such a function, but your want to mock/stub it out for your test. You can simply define 
-it in your test module as follows:
+Imagine you've written a function that prints some bytes as ASCII hex:
+
+<pre>
+int my_function()
+{
+	const uint8_t bytes[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+
+	if (print_as_ascii_hex(stdout, bytes, sizeof(bytes)) < 0)
+		return -1;
+
+	return 0;
+}
+</pre>
+
+Now you want to unit test the hello out of it (ok maybe you want to write 
+the test before writing the actual function, but that's another topic).
+For the purpose of your test, you'll want to mock/stub print_as_ascii_hex().
+You have two choices: (1) you write the mocks and stub by hand, which is long 
+painful and error prone or (2) you can describe it using the following syntax:
 
 <pre>
 int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
@@ -56,7 +72,7 @@ int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 }
 </pre>
 
-which, using mockme, will be replaced by this:
+and let the mockme script generated this cmockery code:
 
 <pre>
 void STUB_print_as_ascii_hex(int return_value)
@@ -86,17 +102,25 @@ int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 }
 </pre>
 
-which, in turn, allow you to write test like these:
+which, in turn, can be used to write tests like these:
 
 <pre>
 static void test__my_function__returns_minus_one_if_print_as_ascii_hex_fails() 
 {
-    STUB(print_as_ascii_hex, -1);
+	// inject -1 as the return value for print_as_ascii_hex()
+    STUB(print_as_ascii_hex, -1);  
+    // check that my_function cactches the error
     assert_int_equal(-1, CALL(my_function()));
 }
 
 static void test__my_function__prints_some_bytes()
-{    const uint8_t expected_bytes[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };    MOCK(print_as_ascii_hex, stdout, expected_bytes, sizeof(expected_bytes));    CALL(my_function());}
+{
+	// tell the function print_as_ascii_hex() to expect some bytes to be printed on stdout
+    const uint8_t expected_bytes[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };    MOCK(print_as_ascii_hex, stdout, expected_bytes, sizeof(expected_bytes));
+
+	// call my_function()    
+    CALL(my_function());}
 </pre>
 
-
+See <a href="https://github.com/meuter/mockme/blob/master/demo/demo_unit_test.c">the demo</a>
+for a more detailed example.
