@@ -68,8 +68,8 @@ int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 {
     INPUT_VALUE(output);
     INPUT_VALUE(size);
-    INPUT_MEMORY(bytes, size);
-    RETURN(0);
+    INPUT_MEMORY(bytes, size);  
+    RETURN(0);	// 0 is the default return value
 }
 </pre>
 
