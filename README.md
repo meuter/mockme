@@ -57,8 +57,8 @@ int my_function()
 </pre>
 
 Now you want to unit test the hello out of it (ok maybe you want to write 
-the test before writing the actual function, but that's another topic).
-For the purpose of your test, you'll want to mock/stub print_as_ascii_hex().
+the tests before writing the actual function, but that's another topic).
+For the purpose of your test, you'll want to mock/stub our print_as_ascii_hex().
 You have two choices: (1) you write the mocks and stub by hand, which is long 
 painful and error prone or (2) you can describe it using the following syntax:
 
