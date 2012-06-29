@@ -1,7 +1,7 @@
 MockMe! 
 =======
 
-Introduction:
+Introduction
 ------------
 
 MockMe! is a unit test framework for the C language based on top of (a patched)
@@ -13,7 +13,7 @@ needs.
 
 *Contributors*: Cédric Meuter, Nicolas Maquet with guidance by Erik Talboom
 
-CLI:
+CLI
 ---
 At the heart of this, stands the mockme script. It acts as a C preprocessor that
 auto-magically generates proper mocking and stubbing function for your double (*).
@@ -39,7 +39,7 @@ Options:
     http://martinfowler.com/articles/mocksArentStubs.html
 
 
-Example:
+Example
 -------
 Imagine you are testing a function that prints some bytes as ASCII hex. You already have
 such a function, but your want to mock/stub it out for your test. You can simply write 
