@@ -123,5 +123,13 @@ static void test__my_function__prints_some_bytes()
     CALL(my_function());}
 </pre>
 
-See <a href="https://github.com/meuter/mockme/blob/master/demo/demo_unit_test.c">the demo</a>
-for a more detailed example.
+For a more detailed example, you can have a look at 
+<a href="https://github.com/meuter/mockme/blob/master/demo/demo_unit_test.c">demo_unit_test.c</a>.
+
+Extra
+-----
+
+As an extra free of charge, for those of you who use scons, you can check the
+<a href="https://github.com/meuter/mockme/blob/master/SConstruct">SConstruct</a> to see how
+mockme can be nicely integrated in a build script.
+
