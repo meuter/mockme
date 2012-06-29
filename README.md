@@ -42,7 +42,7 @@ Options:
 
 Example
 -------
-Imagine you've written a function that prints some bytes as ASCII hex:
+Let's say you've written a function that prints some bytes as ASCII hex:
 
 <pre>
 int my_function()
