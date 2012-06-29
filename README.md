@@ -44,14 +44,15 @@ Example
 -------
 Imagine you've written a function that prints some bytes as ASCII hex:
 
-
 <pre>
 int my_function()
 {
-	...
-	if (print_as_ascii_hex(stdout, bytes, sizeof(bytes)) < 0)
+	const uint8_t bytes[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+
+	if (print_as_ascii_hex(stdout, bytes, sizeof(bytes)) == -1)
 		return -1;
-	...
+
+	return 0;
 }
 </pre>
 
