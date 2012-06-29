@@ -3,3 +3,5 @@
 .project
 .pydevproject
 /.cproject
+demo/.*.o
+mockme/.*.o
