@@ -78,7 +78,7 @@ class FunctionCall(object):
     def get_actual_argument(self, n):
         """returns the n^th actual argument of a function call"""
         return self.get_actual_arguments()[n]
-        
+            
 
 ########################################################################################################################
        
@@ -121,10 +121,6 @@ class FunctionDefinition(object):
                 return arg
         return None
 
-    def get_arguments_declaration(self):
-        """return the formal arguments declaration as one string"""
-        return ", ".join(arg.get_declaration() for arg in self.get_formal_arguments())
-
     def get_body(self):
         """returns the body of the function as a list of AST nodes"""
         body_node = dict(self.node.children()).get("body", None)
@@ -154,6 +150,14 @@ class FunctionFormalArgument(object):
         """returns the name of the argument as a string"""
         return self.node.name
     
+    def get_type(self):
+        """returns the type of the argument... well mostly does not work for [] types"""
+        return self.get_declaration().replace(self.get_name(),"")
+    
+    def get_dereferenced_type(self):
+        """returns the dereferenced type of the argument... well mostly does not work for [] types"""
+        return self.get_dereferenced_declaration().replace(self.get_name(),"")
+        
     def get_declaration(self):
         """returns the declaration of the argument as a string"""
         generator = c_generator.CGenerator()
@@ -162,13 +166,16 @@ class FunctionFormalArgument(object):
     def get_dereferenced_declaration(self):
         """return a declaration of the argument with one less pointer indirection, e.g. 'int *p' --> 'int p'"""
         generator = c_generator.CGenerator()
-        type_decl_node = dict(self.node.children())['type']
-        dereffed_type_decl_node = dict(type_decl_node.children())['type']
-        return generator._generate_type(dereffed_type_decl_node)
+        type_node = dict(self.node.children())['type']
+        return generator._generate_type(self._deref_type_node(type_node))
+          
+    def _deref_type_node(self, type_node):
+        """dereferences a type node, i.e. removes a PtrType at the root of the node"""
+        return dict(type_node.children())['type']
             
-    def tag(self, tag_value):
+    def tag(self, value):
         """allows to tag the argument"""
-        self.tag_value = tag_value
+        self.tag_value = value
         
     def get_tag(self):
         """allows to retrieve the tag"""
@@ -185,7 +192,7 @@ class DoubleDefinition(FunctionDefinition):
     
     DOUBLE_MACROS = [
             "INPUT_VALUE", "INPUT_MEMORY", "INPUT_STRING",
-            "OUTPUT_VALUE", "OUTPUT_MEMORY", "OUTPUT_STRING",
+            "OUTPUT_VALUE", # "OUTPUT_MEMORY", "OUTPUT_STRING", not yet supported
             "RETURN"
     ]
     
@@ -204,48 +211,58 @@ class DoubleDefinition(FunctionDefinition):
         super(DoubleDefinition, self).__init__(func_def.node)
         self.return_statement = None        
         self.retrieve_return_statement()
+        self.tag_arguments()
         
+    def get_macro_calls(self, macro_prefix):
+        """returns the list of macro calls matching a given prefix as a list of FunctionCall"""
+        return [ FunctionCall(i) for i in self.get_body() if FunctionCall(i).get_called().startswith(macro_prefix) ]
+
     def retrieve_return_statement(self):
         """goes through the body of the double definition and looks for the RETURN() statement"""
-        for instruction in self.get_body():
-            call = FunctionCall(instruction)
-            if call.get_called() == "RETURN":
-                self.return_statement = call
-                            
+        self.return_statement = self.get_macro_calls("RETURN")[0]
+                
+    def tag_arguments(self):
+        """tags each formal argument with the macro call within the double definition body linked to that argument"""
+        calls = self.get_macro_calls("INPUT_") + self.get_macro_calls("OUTPUT_")        
+        for call in calls:
+            arg_name = call.get_actual_argument(0)
+            self.get_formal_argument(arg_name).tag(call)
+            if (call.get_called().endswith("MEMORY")):
+                arg_name = call.get_actual_argument(1)
+                self.get_formal_argument(arg_name).tag(call)
                         
     def get_happy_return_value(self):
         """returns the default happy value of the double, i.e. the first argument of the RETURN macro call"""
         args = self.return_statement.get_actual_arguments()
         return args[0] if args else "NULL"
-
-
-    
-    def get_stub_default_default_arguments(self):
+            
+    def get_mock_formal_argument_declarations(self):
+        """return the formal arguments declaration of the MOCK_foo function as a comma seperated string"""        
+        return ", ".join(arg.get_declaration() for arg in self.get_formal_arguments() if not arg.get_tag().get_called().startswith("OUTPUT_"))
+        
+    def get_stub_default_actual_arguments(self):
         """returns the default stub argument as one comma separated string"""
         expression_list = []
         
         if self.return_statement.get_actual_arguments():
             expression_list.append(self.return_statement.get_actual_argument(0))
 
-        for instruction in self.get_body():
-            call = FunctionCall(instruction)
-            if call.get_called().startswith("OUTPUT_VALUE"):
-                expression_list.append(call.get_actual_argument(1))
-        
+        for arg in self.get_formal_arguments():
+            if arg.get_tag().get_called() == "OUTPUT_VALUE":
+                expression_list.append(arg.get_tag().get_actual_argument(1))
+                        
         return ", ".join(expression_list)
     
-    def get_stub_formal_arguments(self):
+    def get_stub_formal_argument_declarations(self):
         """returns the formal arguments of the STUB_foo function as a comma seperated string"""
         declaration_list = []
     
         if self.get_return_type() != "void":
             declaration_list.append(self.get_return_type() + " return_value");
 
-        for instruction in self.get_body():
-            call = FunctionCall(instruction)
-            if call.get_called().startswith("OUTPUT_VALUE"):
-                formal_arg = self.get_formal_argument(call.get_actual_argument(0))
-                declaration_list.append(formal_arg.get_dereferenced_declaration())
+        for arg in self.get_formal_arguments():
+            if arg.get_tag().get_called() == "OUTPUT_VALUE":
+                declaration_list.append(arg.get_dereferenced_declaration())
             
         return ", ".join(declaration_list)
     
@@ -272,35 +289,40 @@ class MockGenerator(object):
         """generates the code that goes inside the double function, hence replacing the double macro calls"""
         function_name        = double_def.get_name()
         return_type          = double_def.get_return_type()
-        arguments            = double_def.get_formal_arguments()
-        default_stub_args    = double_def.get_stub_default_default_arguments()   
+        default_stub_args    = double_def.get_stub_default_actual_arguments()   
         return_or_not_return = "return " if return_type != "void" else ""
         
         self.writeln("    if (auto_stub())")
         self.writeln("        STUB_{function_name}({default_stub_args});".format(**locals()))
-        for instruction in double_def.get_body():
-            call = FunctionCall(instruction)
+        for call in double_def.get_macro_calls("INPUT_"):
             if call.get_called() in [ "INPUT_VALUE", "INPUT_STRING" ]:
-                value = call.get_actual_argument(0)
-                self.writeln("    check_expected({value});".format(**locals()))
+                name = call.get_actual_argument(0)
+                self.writeln("    check_expected({name});".format(**locals()))
             elif call.get_called() == "INPUT_MEMORY":
                 ptr = call.get_actual_argument(0)
                 size = call.get_actual_argument(1)
                 self.writeln("    check_expected({size});".format(**locals()))
-                self.writeln("    check_expected({ptr});".format(**locals()))            
+                self.writeln("    check_expected({ptr});".format(**locals()))
+        for call in double_def.get_macro_calls("OUTPUT_"):
+            if call.get_called() == "OUTPUT_VALUE":
+                name = call.get_actual_argument(0)
+                type = double_def.get_formal_argument(name).get_dereferenced_type()
+                self.writeln("    check_expected({name});".format(**locals()))
+                self.writeln("    *({name}) = ({type})mock();".format(**locals()))
+                
+            
         self.writeln("    {return_or_not_return}({return_type})mock();".format(**locals()))
     
     
     def generate_mock(self, double_def):
         """generates the MOCK_foo function"""
         function_name    = double_def.get_name()
-        formal_arguments = double_def.get_arguments_declaration()
+        formal_arguments = double_def.get_mock_formal_argument_declarations()
         happy_value      = double_def.get_happy_return_value()
         
         self.writeln("void MOCK_{function_name}({formal_arguments})".format(**locals()))
         self.writeln("{")
-        for instruction in double_def.get_body():
-            call = FunctionCall(instruction)
+        for call in double_def.get_macro_calls("INPUT_"):
             if call.get_called() == "INPUT_VALUE":
                 value = call.get_actual_argument(0)
                 self.writeln("    expect_value({function_name}, {value}, {value});".format(**locals()))
@@ -312,6 +334,13 @@ class MockGenerator(object):
                 size = call.get_actual_argument(1)
                 self.writeln("    expect_value({function_name}, {size}, {size});".format(**locals()))
                 self.writeln("    expect_memory({function_name}, {ptr}, {ptr}, {size});".format(**locals()))
+        for call in double_def.get_macro_calls("OUTPUT_"):
+            if call.get_called() == "OUTPUT_VALUE":
+                name = call.get_actual_argument(0)
+                default_value = call.get_actual_argument(1)
+                self.writeln("    expect_not_value({function_name}, {name}, NULL);".format(**locals()))
+                self.writeln("    will_return({function_name}, {default_value});".format(**locals()))
+
         self.writeln("    will_return({function_name}, {happy_value});".format(**locals()))                
         self.writeln("}")    
         self.writeln()    
@@ -320,22 +349,28 @@ class MockGenerator(object):
         """generates the STUB_foo function"""
         return_type      = double_def.get_return_type()
         function_name    = double_def.get_name()
-        formal_arguments = double_def.get_stub_formal_arguments()
+        formal_arguments = double_def.get_stub_formal_argument_declarations()
         return_value     = "return_value" if return_type != "void" else "NULL"
                 
         self.writeln("")
         self.writeln("void STUB_{function_name}({formal_arguments})".format(**locals()))
         self.writeln("{")
-        for instruction in double_def.get_body():
-            call = FunctionCall(instruction)
+        for call in double_def.get_macro_calls("INPUT_"):
             if call.get_called() in [ "INPUT_VALUE", "INPUT_STRING" ]:
-                value = call.get_actual_argument(0)
-                self.writeln("    expect_any({function_name}, {value});".format(**locals()))
+                name = call.get_actual_argument(0)
+                self.writeln("    expect_any({function_name}, {name});".format(**locals()))
             elif call.get_called() == "INPUT_MEMORY":
                 ptr = call.get_actual_argument(0)
                 size = call.get_actual_argument(1)
                 self.writeln("    expect_any({function_name}, {size});".format(**locals()))
                 self.writeln("    expect_any({function_name}, {ptr});".format(**locals()))
+        for call in double_def.get_macro_calls("OUTPUT_"):
+            if call.get_called() == "OUTPUT_VALUE":
+                name = call.get_actual_argument(0)
+                self.writeln("    expect_not_value({function_name}, {name}, NULL);".format(**locals()))
+                self.writeln("    will_return({function_name}, {name});".format(**locals()))
+                                
+
         self.writeln("    will_return({function_name}, {return_value});".format(**locals()))
         self.writeln("}")
         self.writeln()        
