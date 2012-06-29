@@ -38,7 +38,7 @@ Options:
 /!\ do not forget the -I/path/to/fake_libc
 </pre>
 
-(*) for a very nice description of mocks/stubs and double function, and much more, you 
+(*) for a very nice description of mocks/stubs/double functions (and much more!), you 
     can have a look at <a href="http://martinfowler.com/articles/mocksArentStubs.html">this article</a>
     by Martin Fowler.
 
