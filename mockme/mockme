@@ -428,8 +428,8 @@ class MockGenerator(object):
             - the body of the double function is replaced with correct cmockery code (check_expected(), mock(), ...)
             - all other lines are copied through untouched
         """
-        lineno   = 0
         line_map = self.build_line_map()
+        lineno   = 0
         lines    = self.module.get_lines()
 
         while lineno < len(lines):
