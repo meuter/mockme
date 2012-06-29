@@ -22,17 +22,17 @@ It has a simple command line interface:
 
 <pre>
 $ ./mockme --help
-Usage: mockme [options] <INFILE>
+Usage: mockme [options] &lt;INFILE&gt;
 
 Automatically generates and add cmockery mocks/stubs/double functions to a C
 module.
 
 Options:
   -h, --help    show this help message and exit
-  -I <DIR>      add the directory <DIR> to the list of directories to be
+  -I &lt;DIR&gt;      add the directory &lt;DIR&gt; to the list of directories to be
                 searched for header files.
-  -D <NAME>     predefine <NAME> as a macro, with definition 1
-  -o <OUTFILE>  sets <OUTFILE> as output; if no file is provided, the standard
+  -D &lt;NAME&gt;     predefine &lt;NAME&gt; as a macro, with definition 1
+  -o &lt;OUTFILE&gt;  sets &lt;OUTFILE&gt; as output; if no file is provided, the standard
                 output will be used
 
 /!\ do not forget the -I/path/to/fake_libc
