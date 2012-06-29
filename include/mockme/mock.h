@@ -8,20 +8,23 @@
 
 #if !defined(MOCK_ME)
 
-#define INPUT_VALUE(value)\
-	do { (void)value; } while(0)  					// avoid your IDE to go all "variable not used"
+#define INPUT_VALUE(name)\
+	do { (void)name; } while(0)  				// avoid your IDE to go all "variable not used"
 
 #define INPUT_MEMORY(ptr, size)\
-	do { (void)ptr; (void)size; } while(0)          // avoid your IDE to go all "variable not used"
+	do { (void)ptr; (void)size; } while(0)      // avoid your IDE to go all "variable not used"
 
-#define INPUT_STRING(value)\
-	do { (void)value; } while(0)					// avoid your IDE to go all "variable not used"
+#define INPUT_STRING(name)\
+	do { (void)name; } while(0)					// avoid your IDE to go all "variable not used"
+
+#define OUTPUT_VALUE(name, default_value)\
+	do { (void)name; } while(0)					// avoid your IDE to go all "variable not used"
 
 #define __HAPPY_RETURN_VALUE(value, args...)\
 	value
 
 #define RETURN(args...)\
-	return __HAPPY_RETURN_VALUE(args)				// avoid your IDE to go all "missing return statement"
+	return __HAPPY_RETURN_VALUE(args)			// avoid your IDE to go all "missing return statement"
 
 #endif
 

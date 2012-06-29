@@ -159,6 +159,13 @@ class FunctionFormalArgument(object):
         generator = c_generator.CGenerator()
         return generator._generate_type(dict(self.node.children())['type'])
     
+    def get_dereferenced_declaration(self):
+        """return a declaration of the argument with one less pointer indirection, e.g. 'int *p' --> 'int p'"""
+        generator = c_generator.CGenerator()
+        type_decl_node = dict(self.node.children())['type']
+        dereffed_type_decl_node = dict(type_decl_node.children())['type']
+        return generator._generate_type(dereffed_type_decl_node)
+            
     def tag(self, tag_value):
         """allows to tag the argument"""
         self.tag_value = tag_value
@@ -178,7 +185,7 @@ class DoubleDefinition(FunctionDefinition):
     
     DOUBLE_MACROS = [
             "INPUT_VALUE", "INPUT_MEMORY", "INPUT_STRING",
-#            "OUTPUT_VALUE", "OUTPUT_MEMORY", "OUTPUT_STRING", # not supported yet
+            "OUTPUT_VALUE", "OUTPUT_MEMORY", "OUTPUT_STRING",
             "RETURN"
     ]
     
@@ -205,14 +212,42 @@ class DoubleDefinition(FunctionDefinition):
             if call.get_called() == "RETURN":
                 self.return_statement = call
                             
-    def get_default_stub_arguments(self):
-        """returns the default stub argument as one comma separated string"""
-        return ", ".join(self.return_statement.get_actual_arguments())
                         
     def get_happy_return_value(self):
         """returns the default happy value of the double, i.e. the first argument of the RETURN macro call"""
         args = self.return_statement.get_actual_arguments()
         return args[0] if args else "NULL"
+
+
+    
+    def get_stub_default_default_arguments(self):
+        """returns the default stub argument as one comma separated string"""
+        expression_list = []
+        
+        if self.return_statement.get_actual_arguments():
+            expression_list.append(self.return_statement.get_actual_argument(0))
+
+        for instruction in self.get_body():
+            call = FunctionCall(instruction)
+            if call.get_called().startswith("OUTPUT_VALUE"):
+                expression_list.append(call.get_actual_argument(1))
+        
+        return ", ".join(expression_list)
+    
+    def get_stub_formal_arguments(self):
+        """returns the formal arguments of the STUB_foo function as a comma seperated string"""
+        declaration_list = []
+    
+        if self.get_return_type() != "void":
+            declaration_list.append(self.get_return_type() + " return_value");
+
+        for instruction in self.get_body():
+            call = FunctionCall(instruction)
+            if call.get_called().startswith("OUTPUT_VALUE"):
+                formal_arg = self.get_formal_argument(call.get_actual_argument(0))
+                declaration_list.append(formal_arg.get_dereferenced_declaration())
+            
+        return ", ".join(declaration_list)
     
               
       
@@ -238,7 +273,7 @@ class MockGenerator(object):
         function_name        = double_def.get_name()
         return_type          = double_def.get_return_type()
         arguments            = double_def.get_formal_arguments()
-        default_stub_args    = double_def.get_default_stub_arguments()   
+        default_stub_args    = double_def.get_stub_default_default_arguments()   
         return_or_not_return = "return " if return_type != "void" else ""
         
         self.writeln("    if (auto_stub())")
@@ -285,7 +320,7 @@ class MockGenerator(object):
         """generates the STUB_foo function"""
         return_type      = double_def.get_return_type()
         function_name    = double_def.get_name()
-        formal_arguments = return_type + " return_value" if return_type != "void" else ""
+        formal_arguments = double_def.get_stub_formal_arguments()
         return_value     = "return_value" if return_type != "void" else "NULL"
                 
         self.writeln("")

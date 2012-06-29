@@ -36,6 +36,19 @@ const char *get_prefix()
 	RETURN("> ");
 }
 
+void get_me_the_answer_of_everything(int *answer)
+{
+	OUTPUT_VALUE(answer, 42);
+	RETURN();
+}
+
+int get_me_the_answer_of_everything_and_tell_me_is_the_world_is_ending(int *answer)
+{
+	OUTPUT_VALUE(answer, 42);
+	RETURN(0);
+}
+
+
 /**********************************************************************************************************************/
 
 static void test__print_prefix__calls_fprintf()
