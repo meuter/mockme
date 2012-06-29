@@ -136,3 +136,5 @@ As an added bonus, for those of you who use <a href="http://www.scons.org/">scon
 <a href="https://github.com/meuter/mockme/blob/master/SConstruct">SConstruct</a> to see how
 mockme can be nicely integrated in a build script.
 
+
+*Happy Testing!*
