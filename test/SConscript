@@ -1,0 +1,6 @@
+Import("root")
+
+test = root.Clone()
+test.MergeFlags("-I#include -L#mockme -lmockme -DUNDER_TEST")
+test.MockMe("test_mockme_mocked.c", "test_mockme.c")
+test.UnitTest("test_mockme", Split("test_mockme_mocked.c"))
