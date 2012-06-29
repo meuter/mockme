@@ -237,7 +237,7 @@ class DoubleDefinition(FunctionDefinition):
     """
     represents a double definition i.e. a classical function definition whose body is only composed of 
     macro call to INPUT_VALUE, INPUT_STRING, INPUT_MEMORY, OUTPUT_VALUE, OUTPUT_STRING, OUTPUT_MEMORY,
-    or RETURN
+    or RETURN. Functions with empty body are not considered
     """
     
     DOUBLE_DEFINITION_LANGUAGE = [
@@ -251,8 +251,9 @@ class DoubleDefinition(FunctionDefinition):
     def parse(node):
         """parses a FuncDef node, returns a DoubleDefinition if the FuncDef contains only macro call, None otherwise"""
         func_def = FunctionDefinition.parse(node)
-        for instruction in func_def.get_body():
-                    
+        if not func_def.get_body():
+            return None
+        for instruction in func_def.get_body():     
             if not isinstance(instruction, c_ast.FuncCall):
                 return None
             called = instruction.name.name

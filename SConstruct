@@ -21,8 +21,8 @@ def UnitTest(self, target, source):
     self.Command(target + ".res", target, action)
     
 def MockMe(self, target, source):
-    self["MOCKME_DEFINES"] = " ".join("-D" + x for x in self["CPPDEFINES"])
-    self["MOCKME_PATH"]    = " ".join("-I" + str(Dir(x)) for x in self["CPPPATH"])
+    self["MOCKME_DEFINES"] = " ".join("-D" + x for x in self.get("CPPDEFINES", []))
+    self["MOCKME_PATH"]    = " ".join("-I" + str(Dir(x)) for x in self.get("CPPPATH", []))
     self["SCONS_ROOT"]     = Dir("#").abspath + "/"
     mockme = Action("${SCONS_ROOT}mockme/mockme $MOCKME_DEFINES $MOCKME_PATH -I${SCONS_ROOT}include/mockme/fake_libc $SOURCE -o $TARGET",
                     "   MOCK  ${TARGET}")
@@ -50,6 +50,7 @@ root.MergeFlags("-ggdb -O0")
 Export("root")
 
 SConscript("mockme/SConscript")
+SConscript("test/SConscript")
 SConscript("demo/SConscript")
 
 ########################################################################################################################

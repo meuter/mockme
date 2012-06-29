@@ -27,51 +27,7 @@ int xfprintf(FILE *stream, const char *format, ...)
 	RETURN(1);
 }
 
-void print_prefix()
-{
-	RETURN();
-}
-
-const char *get_prefix()
-{
-	RETURN("> ");
-}
-
-void get_me_the_answer_of_everything(int *answer)
-{
-	OUTPUT_VALUE(answer, 42);
-	RETURN();
-}
-
-int get_me_the_answer_of_everything_and_tell_me_is_the_world_is_ending(int *answer)
-{
-	OUTPUT_VALUE(answer, 42);
-	RETURN(0);
-}
-
-
-void fixed_size_buffer_as_input(uint8_t *aes256_key)
-{
-	INPUT_MEMORY(aes256_key, 256/8);
-	RETURN();
-}
-
-
 /**********************************************************************************************************************/
-
-static void test__print_prefix__calls_fprintf()
-{
-	MOCK(xfprintf, stdout, "%s");
-	CALL(print_prefix());
-}
-
-/**********************************************************************************************************************/
-
-static void test__print_as_scii_hex__print_prefix()
-{
-	MOCK(print_prefix);
-	CALL(print_as_ascii_hex(TEST_OUTPUT, TEST_BYTES, TEST_SIZE));
-}
 
 static void test__print_as_ascii_hex__returns_0_on_success()
 {
@@ -108,7 +64,6 @@ static void test__print_as_ascii_hex__returns_minus_1_if_fprintf_of_trailing_new
 static void test__print_as_ascii_hex__does_nothing_else()
 {
 	disable_auto_stubs();
-	STUB(print_prefix);
 	N_STUB(TEST_SIZE, xfprintf, 1);
 	STUB(xfprintf, 1);
 	CALL(print_as_ascii_hex(TEST_OUTPUT, TEST_BYTES, TEST_SIZE));
@@ -142,9 +97,6 @@ int main()
 {
 	unit_test_t all_tests[] =
 	{
-		unit_test(test__print_prefix__calls_fprintf),
-
-		unit_test(test__print_as_scii_hex__print_prefix),
 		unit_test(test__print_as_ascii_hex__returns_0_on_success),
 		unit_test(test__print_as_ascii_hex__prints_all_bytes),
 		unit_test(test__print_as_ascii_hex__returns_minus_1_if_fprintf_of_one_byte_fails),

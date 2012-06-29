@@ -2,11 +2,12 @@
 #include <mockme/test.h>
 #include <mockme/under_test.h>
 
+#include <stdint.h>
+
 /**********************************************************************************************************************/
 
 DEFINE_FUNCTION(void, function_no_arg_to_return_value)
 {
-	return;
 }
 
 void function_no_arg_to_return_value()
@@ -67,7 +68,6 @@ DEFINE_FUNCTION(void, function_input_value_no_return_value,
 )
 {
 	(void)x;
-	return;
 }
 
 void function_input_value_no_return_value(int x)
@@ -100,7 +100,6 @@ DEFINE_FUNCTION(void, function_input_string_no_return_value,
 )
 {
 	(void)s;
-	return;
 }
 
 void function_input_string_no_return_value(const char *s)
@@ -124,6 +123,82 @@ static void test__function_input_string_no_return_value__can_be_stubbed()
 {
 	STUB(function_input_string_no_return_value);
 	function_input_string_no_return_value("bar");
+}
+
+
+/**********************************************************************************************************************/
+
+DEFINE_FUNCTION(void, function_input_memory_fixed_size_no_return_value,
+	uint8_t *p
+)
+{
+	(void)p;
+}
+
+void function_input_memory_fixed_size_no_return_value(uint8_t *p)
+{
+	INPUT_MEMORY(p, 4);
+	RETURN();
+}
+
+static void test__function_input_memory_fixed_size_no_return_value__can_be_called()
+{
+	uint8_t test_buffer[] = { 0x01, 0x02, 0x03, 0x04 };
+	function_input_memory_fixed_size_no_return_value(test_buffer);
+}
+
+static void test__function_input_memory_fixed_size_no_return_value__can_be_mocked()
+{
+	uint8_t test_buffer[] = { 0x01, 0x02, 0x03, 0x04 };
+	uint8_t expected_buffer[] = { 0x01, 0x02, 0x03, 0x04 };
+	MOCK(function_input_memory_fixed_size_no_return_value, expected_buffer);
+	function_input_memory_fixed_size_no_return_value(test_buffer);
+}
+
+static void test__function_input_memory_fixed_size_no_return_value__can_be_stubbed()
+{
+	uint8_t test_buffer[] = { 0x01, 0x02, 0x03, 0x04 };
+	STUB(function_input_memory_fixed_size_no_return_value);
+	function_input_memory_fixed_size_no_return_value(test_buffer);
+}
+
+/**********************************************************************************************************************/
+
+DEFINE_FUNCTION(void, function_input_memory_and_size_fixed_size_no_return_value,
+	uint8_t *p,
+	size_t s
+)
+{
+	(void)p;
+	(void)s;
+}
+
+void function_input_memory_and_size_fixed_size_no_return_value(uint8_t *p, size_t s)
+{
+	INPUT_VALUE(s);
+	INPUT_MEMORY(p, s);
+	RETURN();
+}
+
+static void test__function_input_memory_and_size_fixed_size_no_return_value__can_be_called()
+{
+	uint8_t test_buffer[] = { 0x01, 0x02, 0x03 };
+	function_input_memory_and_size_fixed_size_no_return_value(test_buffer, sizeof(test_buffer));
+}
+
+static void test__function_input_memory_and_size_fixed_size_no_return_value__can_be_mocked()
+{
+	uint8_t test_buffer[] = { 0x01, 0x02 };
+	uint8_t expected_buffer[] = { 0x01, 0x02 };
+	MOCK(function_input_memory_and_size_fixed_size_no_return_value, expected_buffer, sizeof(expected_buffer));
+	function_input_memory_and_size_fixed_size_no_return_value(test_buffer, sizeof(test_buffer));
+}
+
+static void test__function_input_memory_and_size_fixed_size_no_return_value__can_be_stubbed()
+{
+	uint8_t test_buffer[] = { 0x01, 0x02, 0x03, 0x04 };
+	STUB(function_input_memory_and_size_fixed_size_no_return_value);
+	function_input_memory_and_size_fixed_size_no_return_value(test_buffer, sizeof(test_buffer));
 }
 
 /**********************************************************************************************************************/
@@ -161,6 +236,46 @@ static void test__function_input_value_int_return_value__can_be_stubbed()
 
 /**********************************************************************************************************************/
 
+DEFINE_FUNCTION(void, function_output_value_no_return_value,
+	int *x
+)
+{
+	(void)x;
+}
+
+void function_output_value_no_return_value(int *x)
+{
+	OUTPUT_VALUE(x, 42);
+	RETURN();
+}
+
+static void test__function_output_value_no_return_value__can_be_called()
+{
+	int x;
+	function_output_value_no_return_value(&x);
+	assert_int_equal(x, 42);
+}
+
+static void test__function_output_value_no_return_value__can_be_mocked()
+{
+	int x;
+	MOCK(function_output_value_no_return_value);
+	function_output_value_no_return_value(&x);
+	assert_int_equal(x, 42);
+}
+
+static void test__function_output_value_no_return_value__can_be_stubbed()
+{
+	int x;
+	STUB(function_output_value_no_return_value, 43);
+	function_output_value_no_return_value(&x);
+	assert_int_equal(x, 43);
+
+}
+
+
+/**********************************************************************************************************************/
+
 int main()
 {
 	unit_test_t all_tests[] =
@@ -181,9 +296,21 @@ int main()
 		unit_test(test__function_input_string_no_return_value__can_be_mocked),
 		unit_test(test__function_input_string_no_return_value__can_be_stubbed),
 
+		unit_test(test__function_input_memory_fixed_size_no_return_value__can_be_called),
+		unit_test(test__function_input_memory_fixed_size_no_return_value__can_be_mocked),
+		unit_test(test__function_input_memory_fixed_size_no_return_value__can_be_stubbed),
+
+		unit_test(test__function_input_memory_and_size_fixed_size_no_return_value__can_be_called),
+		unit_test(test__function_input_memory_and_size_fixed_size_no_return_value__can_be_mocked),
+		unit_test(test__function_input_memory_and_size_fixed_size_no_return_value__can_be_stubbed),
+
 		unit_test(test__function_input_value_int_return_value__can_be_called),
 		unit_test(test__function_input_value_int_return_value__can_be_mocked),
 		unit_test(test__function_input_value_int_return_value__can_be_stubbed),
+
+		unit_test(test__function_output_value_no_return_value__can_be_called),
+		unit_test(test__function_output_value_no_return_value__can_be_mocked),
+		unit_test(test__function_output_value_no_return_value__can_be_stubbed),
 
 	};
 

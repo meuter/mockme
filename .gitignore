@@ -4,4 +4,11 @@
 .pydevproject
 /.cproject
 demo/.*.o
+demo/*.res
+demo/*_mocked.c
+demo/demo_unit_test
+test/.*.o
+test/*.res
+test/*_mocked.c
+test/test_mockme
 mockme/.*.o
