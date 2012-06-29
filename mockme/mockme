@@ -450,7 +450,8 @@ def parse_args():
     """parses the command line argument, see 'mockme --help' for details"""
     parser = optparse.OptionParser(
         usage="%prog [options] <INFILE>", 
-        description="Automatically generates and add cmockery mocks/stubs/double functions to a C module"
+        description="Automatically generates and add cmockery mocks/stubs/double functions to a C module.",
+        epilog="/!\ do not forget the -I/path/to/fake_libc" 
     )
 
     parser.add_option("-I", action="append", default=[], dest="includes", metavar="<DIR>", 

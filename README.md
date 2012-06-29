@@ -25,7 +25,7 @@ $ ./mockme --help
 Usage: mockme [options] <INFILE>
 
 Automatically generates and add cmockery mocks/stubs/double functions to a C
-module
+module.
 
 Options:
   -h, --help    show this help message and exit
@@ -34,6 +34,8 @@ Options:
   -D <NAME>     predefine <NAME> as a macro, with definition 1
   -o <OUTFILE>  sets <OUTFILE> as output; if no file is provided, the standard
                 output will be used
+
+/!\ do not forget the -I/path/to/fake_libc
 </pre>
 
 (*) for a good description of mocks/stubs and double function, see:
