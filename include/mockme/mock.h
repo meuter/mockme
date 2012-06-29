@@ -11,8 +11,8 @@
 #define INPUT_VALUE(name)\
 	(void)name									// avoid your IDE to go all "variable not used"
 
-#define INPUT_MEMORY(ptr, size)\
-	(void)ptr									// avoid your IDE to go all "variable not used"
+#define INPUT_MEMORY(name, size)\
+	(void)name									// avoid your IDE to go all "variable not used"
 
 #define INPUT_STRING(name)\
 	(void)name									// avoid your IDE to go all "variable not used"

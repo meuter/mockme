@@ -241,33 +241,36 @@ class DoubleDefinition(FunctionDefinition):
     """
     
     DOUBLE_DEFINITION_LANGUAGE = [
-            "INPUT_VALUE", "INPUT_MEMORY", "INPUT_STRING",
-            "OUTPUT_VALUE", # "OUTPUT_MEMORY", "OUTPUT_STRING", not yet supported
-            "RETURN"
+        "INPUT_VALUE", "INPUT_MEMORY", "INPUT_STRING",
+        "OUTPUT_VALUE", # "OUTPUT_MEMORY", "OUTPUT_STRING", not yet supported
+        "RETURN"
     ]
     
     
     @staticmethod
     def parse(node):
+        """parses a FuncDef node, returns a DoubleDefinition if the FuncDef contains only macro call, None otherwise"""
         func_def = FunctionDefinition.parse(node)
-        for instruction in func_def.get_body():            
+        for instruction in func_def.get_body():
+                    
             if not isinstance(instruction, c_ast.FuncCall):
                 return None
             called = instruction.name.name
             if called not in DoubleDefinition.DOUBLE_DEFINITION_LANGUAGE:
                 return None                    
-        return DoubleDefinition(func_def)
+        return DoubleDefinition(node, func_def.rtype, func_def.args, func_def.body)
             
-    def __init__(self, func_def):
-        node  = func_def.node
-        rtype = FunctionDefinition.parse_rtype(node)        
-        args  = FunctionDefinition.parse_args(node)
-        body  = FunctionDefinition.parse_body(node)
-        super(DoubleDefinition, self).__init__(func_def.node, rtype, args, body)
-        self.return_statement = None        
-        self.retrieve_return_statement()
+    def __init__(self, node, rtype, args, body):
+        """builds a DoubleDefinition object"""
+        super(DoubleDefinition, self).__init__(node, rtype, args, body)
         self.tag_arguments()
         
+    def tag_arguments(self):
+        """tags each formal argument with the macro call within the double definition body linked to that argument"""
+        calls = self.get_macro_calls("INPUT_") + self.get_macro_calls("OUTPUT_")        
+        for call in calls:
+            self.get_formal_argument(call.get_arg(0)).set_tag(call)
+
     def get_macro_calls(self, macro_prefix):
         """returns the list of macro calls matching a given prefix as a list of FunctionCall"""
         result = []
@@ -277,20 +280,13 @@ class DoubleDefinition(FunctionDefinition):
                 result.append(call)
         return result
 
-    def retrieve_return_statement(self):
-        """goes through the body of the double definition and looks for the RETURN() statement"""
-        self.return_statement = self.get_macro_calls("RETURN")[0]
-                
-    def tag_arguments(self):
-        """tags each formal argument with the macro call within the double definition body linked to that argument"""
-        calls = self.get_macro_calls("INPUT_") + self.get_macro_calls("OUTPUT_")        
-        for call in calls:
-            formal_arg = self.get_formal_argument(call.get_arg(0))
-            if formal_arg: formal_arg.set_tag(call)            
-                        
+    def get_return_statement(self):
+        """returns the RETURN statement of the double definition as a FunctionCall"""
+        return self.get_macro_calls("RETURN")[0]
+                            
     def get_happy_return_value(self):
         """returns the default happy value of the double, i.e. the first argument of the RETURN macro call"""
-        args = self.return_statement.get_args()
+        args = self.get_return_statement().get_args()
         return args[0] if args else "NULL"
             
     def get_mock_formal_argument_declarations(self):
@@ -301,8 +297,8 @@ class DoubleDefinition(FunctionDefinition):
         """returns the default stub argument as one comma separated string"""
         expression_list = []
         
-        if self.return_statement.get_args():
-            expression_list.append(self.return_statement.get_arg(0))
+        if self.get_return_statement().get_args():
+            expression_list.append(self.get_return_statement().get_arg(0))
 
         for arg in self.get_formal_arguments():
             if arg.get_tag().get_called() == "OUTPUT_VALUE":
@@ -323,13 +319,12 @@ class DoubleDefinition(FunctionDefinition):
             
         return ", ".join(declaration_list)
     
-              
-      
 ########################################################################################################################
 
 class MockGenerator(object):
     
     def __init__(self, module, output):
+        """builds a MockGenerator object"""
         self.module = module
         self.output = output        
 
@@ -348,15 +343,14 @@ class MockGenerator(object):
         self.writeln("        STUB_{function_name}({default_stub_args});".format(**locals()))
         for call in double_def.get_macro_calls("INPUT_"):
             if call.get_called() in [ "INPUT_VALUE", "INPUT_STRING" ]:
-                name = call.get_arg(0)
+                (name,) = call.get_args()
                 self.writeln("    check_expected({name});".format(**locals()))
             elif call.get_called() == "INPUT_MEMORY":
-                ptr = call.get_arg(0)
-                size = call.get_arg(1)
-                self.writeln("    check_expected({ptr});".format(**locals()))
+                (name, size) = call.get_args()
+                self.writeln("    check_expected({name});".format(**locals()))
         for call in double_def.get_macro_calls("OUTPUT_"):
             if call.get_called() == "OUTPUT_VALUE":
-                name = call.get_arg(0)
+                (name,_) = call.get_args()
                 type = double_def.get_formal_argument(name).get_dereferenced_type()
                 self.writeln("    check_expected({name});".format(**locals()))
                 self.writeln("    *({name}) = ({type})mock();".format(**locals()))
@@ -373,21 +367,19 @@ class MockGenerator(object):
         self.writeln("{")
         for call in double_def.get_macro_calls("INPUT_"):
             if call.get_called() == "INPUT_VALUE":
-                value = call.get_arg(0)
-                self.writeln("    expect_value({function_name}, {value}, {value});".format(**locals()))
+                (name,) = call.get_args()
+                self.writeln("    expect_value({function_name}, {name}, {name});".format(**locals()))
             elif call.get_called() == "INPUT_STRING":
-                value = call.get_arg(0)
-                self.writeln("    expect_string({function_name}, {value}, {value});".format(**locals()))
+                (name,) = call.get_args()
+                self.writeln("    expect_string({function_name}, {name}, {name});".format(**locals()))
             elif call.get_called() == "INPUT_MEMORY":
-                ptr = call.get_arg(0)
-                size = call.get_arg(1)
-                self.writeln("    expect_memory({function_name}, {ptr}, {ptr}, {size});".format(**locals()))
+                (name, size) = call.get_args()
+                self.writeln("    expect_memory({function_name}, {name}, {name}, {size});".format(**locals()))
         for call in double_def.get_macro_calls("OUTPUT_"):
             if call.get_called() == "OUTPUT_VALUE":
-                name = call.get_arg(0)
-                default_value = call.get_arg(1)
+                (name, default) = call.get_args()
                 self.writeln("    expect_not_value({function_name}, {name}, NULL);".format(**locals()))
-                self.writeln("    will_return({function_name}, {default_value});".format(**locals()))
+                self.writeln("    will_return({function_name}, {default});".format(**locals()))
         self.writeln("    will_return({function_name}, {happy_value});".format(**locals()))                
         self.writeln("}")    
         self.writeln()    
@@ -404,20 +396,29 @@ class MockGenerator(object):
         self.writeln("{")
         for call in double_def.get_macro_calls("INPUT_"):
             if call.get_called() in [ "INPUT_VALUE", "INPUT_STRING" ]:
-                name = call.get_arg(0)
+                (name,) = call.get_args()
                 self.writeln("    expect_any({function_name}, {name});".format(**locals()))
             elif call.get_called() == "INPUT_MEMORY":
-                ptr = call.get_arg(0)
-                size = call.get_arg(1)
-                self.writeln("    expect_any({function_name}, {ptr});".format(**locals()))
+                (name,size) = call.get_args()
+                self.writeln("    expect_any({function_name}, {name});".format(**locals()))
         for call in double_def.get_macro_calls("OUTPUT_"):
             if call.get_called() == "OUTPUT_VALUE":
-                name = call.get_arg(0)
+                (name,_) = call.get_args()
                 self.writeln("    expect_not_value({function_name}, {name}, NULL);".format(**locals()))
                 self.writeln("    will_return({function_name}, {name});".format(**locals()))                            
         self.writeln("    will_return({function_name}, {return_value});".format(**locals()))
         self.writeln("}")
         self.writeln()        
+
+
+    def build_line_map(self):
+        """returns a map giving for each line number the DoubleDefinition occurring at this line if applicable"""  
+        line_map = {}        
+        for double_def in self.module.get_double_definitions():
+            for i in double_def.get_body_line_range():
+                line_map[i] = double_def
+            line_map[double_def.get_declaration_line()] = double_def
+        return line_map
 
     def generate(self):
         """
@@ -427,30 +428,22 @@ class MockGenerator(object):
             - the body of the double function is replaced with correct cmockery code (check_expected(), mock(), ...)
             - all other lines are copied through untouched
         """
-        double_definitions = self.module.get_double_definitions()
-        
-        line_map = {}        
-        for double in double_definitions:
-            for i in double.get_body_line_range():
-                line_map[i] = double
-            line_map[double.get_declaration_line()] = double
+        lineno   = 0
+        line_map = self.build_line_map()
+        lines    = self.module.get_lines()
 
-        lines  = self.module.get_lines()
-        lineno = 0
         while lineno < len(lines):
             double = line_map.get(lineno, None)
-            if double:            
-                if lineno == double.get_declaration_line():
-                    self.generate_stub(double)
-                    self.generate_mock(double)
-                    self.writeln(lines[lineno])
-                    lineno +=1                    
-                elif lineno in double.get_body_line_range():
-                    self.generate_double_body(double)
-                    lineno = double.get_body_line_range()[-1]+1
-            else: 
+            if not double:
                 self.writeln(lines[lineno])
-                lineno += 1
+            elif lineno == double.get_declaration_line():
+                self.generate_stub(double)
+                self.generate_mock(double)
+                self.writeln(lines[lineno])
+            elif lineno in double.get_body_line_range():
+                self.generate_double_body(double)
+                lineno = double.get_body_line_range()[-1]
+            lineno += 1
            
 ########################################################################################################################
     
