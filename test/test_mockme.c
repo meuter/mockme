@@ -6,30 +6,30 @@
 
 /**********************************************************************************************************************/
 
-DEFINE_FUNCTION(void, function_no_arg_to_return_value)
+DEFINE_FUNCTION(void, function_no_arg_no_return_value)
 {
 }
 
-void function_no_arg_to_return_value()
+void function_no_arg_no_return_value()
 {
 	RETURN();
 }
 
-static void test__function_no_arg_to_return_value__can_be_called()
+static void test__function_no_arg_no_return_value__can_be_called()
 {
-	function_no_arg_to_return_value();
+	function_no_arg_no_return_value();
 }
 
-static void test__function_no_arg_to_return_value__can_be_mocked()
+static void test__function_no_arg_no_return_value__can_be_mocked()
 {
-	MOCK(function_no_arg_to_return_value);
-	function_no_arg_to_return_value();
+	MOCK(function_no_arg_no_return_value);
+	function_no_arg_no_return_value();
 }
 
-static void test__function_no_arg_to_return_value__can_be_stubbed()
+static void test__function_no_arg_no_return_value__can_be_stubbed()
 {
-	STUB(function_no_arg_to_return_value);
-	function_no_arg_to_return_value();
+	STUB(function_no_arg_no_return_value);
+	function_no_arg_no_return_value();
 }
 
 /**********************************************************************************************************************/
@@ -330,9 +330,9 @@ int main()
 {
 	unit_test_t all_tests[] =
 	{
-		unit_test(test__function_no_arg_to_return_value__can_be_called),
-		unit_test(test__function_no_arg_to_return_value__can_be_mocked),
-		unit_test(test__function_no_arg_to_return_value__can_be_stubbed),
+		unit_test(test__function_no_arg_no_return_value__can_be_called),
+		unit_test(test__function_no_arg_no_return_value__can_be_mocked),
+		unit_test(test__function_no_arg_no_return_value__can_be_stubbed),
 
 		unit_test(test__function_no_arg_int_return_value__can_be_called),
 		unit_test(test__function_no_arg_int_return_value__can_be_mocked),
