@@ -4,7 +4,7 @@ import os
 import sys
 import optparse
 
-from pycparser import parse_file, c_ast, c_generator
+from pycparser import parse_file, c_ast, c_generator, plyparser
 
 ########################################################################################################################
 
@@ -15,7 +15,12 @@ class CModule(object):
     def parse(filename, cpp_args=None):
         """parses file and return a CModule"""
         content = open(filename, "r").read()
-        node    = parse_file(filename, use_cpp=True, cpp_args=cpp_args)
+        try:
+            node    = parse_file(filename, use_cpp=True, cpp_args=cpp_args)
+        except plyparser.ParseError as e:
+            sys.stderr.write(str(e) + "\n")
+            sys.exit(-1)
+        
         return CModule(node, filename, content)
 
     def __init__(self, node, filename, content):
