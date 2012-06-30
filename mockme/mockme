@@ -85,7 +85,7 @@ class FunctionDefinition(object):
         """parses a FuncDef node and returns a FunctionDefinition"""
         rtype = FunctionDefinition.parse_rtype(node)        
         args  = FunctionDefinition.parse_args(node)
-        body  = FunctionDefinition.parse_body(node)
+        body  = FunctionDefinition.body_contains_double_definition(node)
         return FunctionDefinition(node, rtype, args, body)
     
     @staticmethod
@@ -101,7 +101,7 @@ class FunctionDefinition(object):
         return result
     
     @staticmethod
-    def parse_body(node):
+    def body_contains_double_definition(node):
         """parses the body of the function and returns it as a list of AST nodes"""
         body_node = dict(node.children()).get("body", None)
         if not body_node: return []
@@ -248,9 +248,36 @@ class DoubleDefinition(FunctionDefinition):
     macro call to INPUT_VALUE, INPUT_STRING, INPUT_MEMORY, OUTPUT_VALUE, or RETURN. Functions with empty
     body are not considered
     """
-   
+       
     @staticmethod
-    def parse_macro_call(func_def, instruction):
+    def parse(node):
+        """parses a FuncDef node, returns a DoubleDefinition if the FuncDef contains only macro call, None otherwise"""               
+        func_def = FunctionDefinition.parse(node)
+        if DoubleDefinition.body_contains_double_definition(func_def):
+            double_def = DoubleDefinition(node, func_def.rtype, func_def.args, func_def.body)
+            DoubleDefinition.tag_arguments_with_macro_calls(double_def) 
+            return double_def
+        return None
+        
+    @staticmethod
+    def body_contains_double_definition(func_def):
+        found_double_macros     = False
+        found_other_instruction = False
+        
+        for instruction in func_def.get_body():
+            if DoubleDefinition.parse_one_macro_call(func_def, instruction): 
+                found_double_macros = True
+            else:
+                found_other_instruction = True
+                
+            if found_double_macros and found_other_instruction:
+                fatal(str(instruction.coord) + ": cannot mix double definition instructions with other instructions")
+                
+        return found_double_macros
+        
+        
+    @staticmethod
+    def parse_one_macro_call(func_def, instruction):
         """parses an instruction ast node and returns a Function"""
         if not isinstance(instruction, c_ast.FuncCall): 
             return None
@@ -274,42 +301,17 @@ class DoubleDefinition(FunctionDefinition):
             
         return call
         
-        
-       
     @staticmethod
-    def parse(node):
-        """parses a FuncDef node, returns a DoubleDefinition if the FuncDef contains only macro call, None otherwise"""               
-        func_def = FunctionDefinition.parse(node)
-        
-        found_double_macros     = False
-        found_other_instruction = False
-        
-        for instruction in func_def.get_body():
-            if DoubleDefinition.parse_macro_call(func_def, instruction): 
-                found_double_macros = True
-            else:
-                found_other_instruction = True
-                
-            if found_double_macros and found_other_instruction:
-                fatal(str(instruction.coord) + ": cannot mix double definition instructions with other instructions")
-                
-        if found_double_macros:
-            return DoubleDefinition(node, func_def.rtype, func_def.args, func_def.body)
-        else:
-            return None
-        
-        
-            
-    def __init__(self, node, rtype, args, body):
-        """builds a DoubleDefinition object"""
-        super(DoubleDefinition, self).__init__(node, rtype, args, body)
-        self.tag_arguments()
-        
-    def tag_arguments(self):
+    def tag_arguments_with_macro_calls(double_def):
         """tags each formal argument with the macro call within the double definition body linked to that argument"""
-        calls = self.get_macro_calls("INPUT_") + self.get_macro_calls("OUTPUT_")        
+        calls = double_def.get_macro_calls("INPUT_") + double_def.get_macro_calls("OUTPUT_")        
         for call in calls:
-            self.get_formal_argument(call.get_arg(0)).set_tag(call)
+            arg_name   = call.get_arg(0)
+            formal_arg = double_def.get_formal_argument(arg_name)
+            if not formal_arg:
+                fatal(str(call.node.coord) + ": '%s' is not a formal argument of '%s' in call to '%s'" % (arg_name, double_def.get_name(), call.get_called()) )
+            formal_arg.set_tag(call)
+           
 
     def get_macro_calls(self, macro_prefix):
         """returns the list of macro calls matching a given prefix as a list of FunctionCall"""
