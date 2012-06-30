@@ -205,6 +205,12 @@ class FormalArgument(object):
         self.node        = node
         self.tag         = tag
     
+    def has_pointer_type(self):
+        """returns True is the type of the argument is a pointer type"""
+        return isinstance(self.get_type_node(), c_ast.PtrDecl)
+
+        return True
+    
     def get_type_node(self):
         """returns the type node of the argument"""
         return dict(self.node.children())['type']
@@ -220,7 +226,7 @@ class FormalArgument(object):
 
     def get_type(self):
         """returns the type of the argument... well mostly does not work for [] types"""
-        return self.get_declaration().replace(self.get_name(),"")
+        return self.get_declaration().replace(self.get_name(),"").strip()
            
     def get_dereferenced_declaration(self):
         """return a declaration of the argument with one less pointer indirection, e.g. 'int *p' --> 'int p'"""
@@ -255,12 +261,14 @@ class DoubleDefinition(FunctionDefinition):
         func_def = FunctionDefinition.parse(node)
         if DoubleDefinition.body_contains_double_definition(func_def):
             double_def = DoubleDefinition(node, func_def.rtype, func_def.args, func_def.body)
-            DoubleDefinition.tag_arguments_with_macro_calls(double_def) 
+            DoubleDefinition.tag_arguments_with_macro_calls(double_def)
+            DoubleDefinition.check_output_arguments(double_def) 
             return double_def
         return None
         
     @staticmethod
     def body_contains_double_definition(func_def):
+        """returns true is the function definition contains only a non-empty list of double macro calls"""
         found_double_macros     = False
         found_other_instruction = False
         
@@ -309,8 +317,24 @@ class DoubleDefinition(FunctionDefinition):
             arg_name   = call.get_arg(0)
             formal_arg = double_def.get_formal_argument(arg_name)
             if not formal_arg:
-                fatal(str(call.node.coord) + ": '%s' is not a formal argument of '%s' in call to '%s'" % (arg_name, double_def.get_name(), call.get_called()) )
+                fatal(str(call.node.coord) +
+                      ": '%s' is not a formal argument of '%s' in call to '%s'" %
+                      (arg_name, double_def.get_name(), call.get_called()) 
+                )
             formal_arg.set_tag(call)
+           
+    @staticmethod
+    def check_output_arguments(double_def):
+        """check if output arguments are indeed pointer types"""
+        for call in double_def.get_macro_calls("OUTPUT_"):
+            arg_name   = call.get_arg(0)
+            formal_arg = double_def.get_formal_argument(arg_name)
+            if not formal_arg.has_pointer_type():
+                fatal(str(call.node.coord) + 
+                      ": '%s' has a non-pointer type '%s' which cannot be used as output argument for '%s'" %
+                      (arg_name, formal_arg.get_type(), double_def.get_name())
+                )
+        pass
            
 
     def get_macro_calls(self, macro_prefix):
