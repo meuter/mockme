@@ -8,6 +8,8 @@
 
 #if !defined(MOCK_ME)
 
+// These macros will be replaced by actual cmockery code by mockme
+
 #define INPUT_VALUE(name)\
 	(void)name									// avoid your IDE to go all "variable not used"
 
