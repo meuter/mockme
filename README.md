@@ -60,7 +60,7 @@ int my_function()
 }
 </pre>
 
-Now you want to unit test the hello out of it (ok maybe you want to write 
+Now you want to unit test the hell out of it (ok maybe you want to write 
 the tests before writing the actual function, but that's another topic).
 For the purpose of your test, you'll want to mock/stub print_as_ascii_hex() out.
 You have two choices: (1) you write the mock/stub/double functions by hand,
