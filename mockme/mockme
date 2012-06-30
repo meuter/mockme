@@ -8,6 +8,12 @@ from pycparser import parse_file, c_ast, c_generator, plyparser
 
 ########################################################################################################################
 
+def fatal(msg):    
+    sys.stderr.write(str(msg) + "\n")
+    sys.exit(-1)
+            
+########################################################################################################################
+
 class CModule(object):
     """represents a C module that can be parsed"""
 
@@ -18,9 +24,7 @@ class CModule(object):
         try:
             node    = parse_file(filename, use_cpp=True, cpp_args=cpp_args)
         except plyparser.ParseError as e:
-            sys.stderr.write(str(e) + "\n")
-            sys.exit(-1)
-        
+            fatal(e)
         return CModule(node, filename, content)
 
     def __init__(self, node, filename, content):
@@ -241,30 +245,60 @@ class FormalArgument(object):
 class DoubleDefinition(FunctionDefinition):
     """
     represents a double definition i.e. a classical function definition whose body is only composed of 
-    macro call to INPUT_VALUE, INPUT_STRING, INPUT_MEMORY, OUTPUT_VALUE, OUTPUT_STRING, OUTPUT_MEMORY,
-    or RETURN. Functions with empty body are not considered
+    macro call to INPUT_VALUE, INPUT_STRING, INPUT_MEMORY, OUTPUT_VALUE, or RETURN. Functions with empty
+    body are not considered
     """
-    
-    DOUBLE_DEFINITION_LANGUAGE = [
-        "INPUT_VALUE", "INPUT_MEMORY", "INPUT_STRING",
-        "OUTPUT_VALUE", # "OUTPUT_MEMORY", "OUTPUT_STRING", not yet supported
-        "RETURN"
-    ]
-    
-    
+   
+    @staticmethod
+    def parse_macro_call(func_def, instruction):
+        """parses an instruction ast node and returns a Function"""
+        if not isinstance(instruction, c_ast.FuncCall): 
+            return None
+        
+        call = FunctionCall.parse(instruction)
+        
+        expected_n_arg = {
+            "INPUT_VALUE"  : 1, 
+            "INPUT_MEMORY" : 2,
+            "INPUT_STRING" : 1,
+            "OUTPUT_VALUE" : 2,
+            "RETURN"       : 0 if func_def.get_rtype() == "void" else 1,  
+        }
+
+        if call.get_called() not in expected_n_arg:
+            return None
+        if len(call.get_args()) < expected_n_arg[call.get_called()]:            
+            fatal(str(instruction.coord) + ": missing argument in call to '%s'" % call.get_called())
+        if len(call.get_args()) > expected_n_arg[call.get_called()]:
+            fatal(str(instruction.coord) + ": too many argument in call to '%s'" % call.get_called())
+            
+        return call
+        
+        
+       
     @staticmethod
     def parse(node):
-        """parses a FuncDef node, returns a DoubleDefinition if the FuncDef contains only macro call, None otherwise"""
+        """parses a FuncDef node, returns a DoubleDefinition if the FuncDef contains only macro call, None otherwise"""               
         func_def = FunctionDefinition.parse(node)
-        if not func_def.get_body():
+        
+        found_double_macros     = False
+        found_other_instruction = False
+        
+        for instruction in func_def.get_body():
+            if DoubleDefinition.parse_macro_call(func_def, instruction): 
+                found_double_macros = True
+            else:
+                found_other_instruction = True
+                
+            if found_double_macros and found_other_instruction:
+                fatal(str(instruction.coord) + ": cannot mix double definition instructions with other instructions")
+                
+        if found_double_macros:
+            return DoubleDefinition(node, func_def.rtype, func_def.args, func_def.body)
+        else:
             return None
-        for instruction in func_def.get_body():     
-            if not isinstance(instruction, c_ast.FuncCall):
-                return None
-            called = instruction.name.name
-            if called not in DoubleDefinition.DOUBLE_DEFINITION_LANGUAGE:
-                return None                    
-        return DoubleDefinition(node, func_def.rtype, func_def.args, func_def.body)
+        
+        
             
     def __init__(self, node, rtype, args, body):
         """builds a DoubleDefinition object"""

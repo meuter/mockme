@@ -1,3 +1,0 @@
-- add support for OUTPUT_STRING in MockGenerator class in mockme
-- add support for OUTPUT_MEMORY in MockGenerator class in mockme
-- improve error reporting when the source module has semantic error in the double definition
