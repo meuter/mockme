@@ -547,8 +547,8 @@ def parse_args():
         r"-DUNDER_TEST" 
     ]
 
-    for directory in args.includes:
-        args.cpp_args.append(r"-I" + directory)
+    for include_dir in args.includes:
+        args.cpp_args.append(r"-I" + include_dir)
     for name in args.defines:
         args.cpp_args.append(r"-D" + name)
     
