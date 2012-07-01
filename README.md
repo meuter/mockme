@@ -19,7 +19,7 @@ mockme
 
 At the heart of this, stands the mockme script. It acts as a C preprocessor that
 auto-magically generates proper mocking and stubbing function for your double (*).
-It has a simple command line interface:
+It has a simple command-line interface:
 
 <pre>
 $ ./mockme --help
@@ -62,7 +62,7 @@ int my_function()
 
 Now you want to unit test the hell out of it (ok maybe you want to write 
 the tests before writing the actual function, but that's another topic).
-For the purpose of your test, you'll want to mock/stub print_as_ascii_hex() out.
+For the purpose of your test, you'll want to mock/stub out print_as_ascii_hex().
 You have two choices: (1) you write the mock/stub/double functions by hand,
 which is long, painful and error prone or (2) you can describe it using the
 following syntax:
@@ -77,7 +77,7 @@ int print_as_ascii_hex(FILE *output, const uint8_t *bytes, const size_t size)
 }
 </pre>
 
-and let the mockme script generated this cmockery code:
+and let the mockme script generate this cmockery code:
 
 <pre>
 void STUB_print_as_ascii_hex(int return_value)
