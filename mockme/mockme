@@ -478,9 +478,9 @@ class MockGenerator(object):
         for call in double_def.get_macro_calls("OUTPUT_"):
             if call.get_called() == "OUTPUT_VALUE":
                 (name,_) = call.get_args()
-                type = double_def.get_formal_argument(name).get_dereferenced_type()
+                arg_type = double_def.get_formal_argument(name).get_dereferenced_type()
                 self.writeln("    check_expected({name});".format(**locals()))
-                self.writeln("    *({name}) = ({type})mock();".format(**locals()))
+                self.writeln("    *({name}) = ({arg_type})mock();".format(**locals()))
         self.writeln("    {return_or_not_return}({return_type})mock();".format(**locals()))
 
     def build_line_map(self):
@@ -547,8 +547,8 @@ def parse_args():
         r"-DUNDER_TEST" 
     ]
 
-    for dir in args.includes:
-        args.cpp_args.append(r"-I" + dir)
+    for include_dir in args.includes:
+        args.cpp_args.append(r"-I" + include_dir)
     for name in args.defines:
         args.cpp_args.append(r"-D" + name)
     
