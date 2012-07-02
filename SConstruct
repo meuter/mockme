@@ -40,7 +40,7 @@ AddMethod(Environment, MockMe)
 variables = Variables()
 variables.Add(BoolVariable("VERBOSE", "set to 1 in order to display the build commands as they are executed", True))
     
-base = Environment(variables=variables)
+base = Environment(variables=variables, ENV=os.environ)
 base["CC"]           = "gcc -m32"
 base["OBJPREFIX"]    = "."
 

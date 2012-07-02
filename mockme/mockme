@@ -13,12 +13,12 @@ def fatal(msg):
 try:
     import ply #@UnusedImport
 except ImportError:
-    fatal("mockme requires python-ply (Python Lex Yacc)")
+    fatal("could not import ply (Python Lex Yacc)")
 
 try:
     from pycparser import parse_file, c_ast, c_generator, plyparser
 except ImportError:
-    fatal("mockme requires pycparser >= 2.07 (Python C Parser)")
+    fatal("could not import pycparser (Python C Parser >= 2.07)")
 
 ########################################################################################################################
 
