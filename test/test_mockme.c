@@ -326,6 +326,31 @@ static void test__function_that_does_a_bit_of_everything__can_be_stubbed()
 
 /**********************************************************************************************************************/
 
+int function_double_auto(int x, char *p, int y)
+{
+	INPUT_VALUES_AND_RETURN(x, p, y, 10);
+}
+
+static void test__function_double_auto__can_be_called()
+{
+	assert_int_equal(function_double_auto(10, NULL, 12), 10);
+}
+
+static void test__function_double_auto__can_be_stubbed()
+{
+	STUB(function_double_auto, 27);
+	assert_int_equal(function_double_auto(10, NULL, 12), 27);
+}
+
+static void test__function_double_auto__can_be_mocked()
+{
+	char c;
+	MOCK(function_double_auto, 10, &c, 15);
+	function_double_auto(10, &c, 15);
+}
+
+/**********************************************************************************************************************/
+
 int main()
 {
 	unit_test_t all_tests[] =
@@ -365,6 +390,10 @@ int main()
 		unit_test(test__function_that_does_a_bit_of_everything__can_be_called),
 		unit_test(test__function_that_does_a_bit_of_everything__can_be_mocked),
 		unit_test(test__function_that_does_a_bit_of_everything__can_be_stubbed),
+
+		unit_test(test__function_double_auto__can_be_called),
+		unit_test(test__function_double_auto__can_be_stubbed),
+		unit_test(test__function_double_auto__can_be_mocked),
 
 	};
 

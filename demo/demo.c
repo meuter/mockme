@@ -22,7 +22,6 @@ DEFINE_FUNCTION(int, print_as_ascii_hex,
 	return 0;
 }
 
-
 DEFINE_FUNCTION(int, main)
 {
 	const uint8_t bytes[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
